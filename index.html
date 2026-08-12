@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Karaoke Memo — 歌いたい曲リスト</title>
+<style>
+:root{
+  --bg:#0a0a0f;
+  --elev:#13131c;
+  --card:#1b1b26;
+  --card-hi:#23232f;
+  --line:rgba(255,255,255,.08);
+  --text:#f3f3f7;
+  --muted:#9a9aae;
+  --accent:#ff3d81;
+  --accent2:#8b5cf6;
+  --ok:#3ddc97;
+  --radius:14px;
+  --tabh:58px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow:hidden;overscroll-behavior:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防止 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#33333f;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#4a4a5a;background-clip:padding-box}
+
+/* ================= layout ================= */
+.app{
+  display:grid;grid-template-columns:236px 1fr;grid-template-rows:1fr auto;
+  height:100dvh;gap:8px;padding:8px;padding-bottom:0;
+}
+.sidebar{background:var(--elev);border-radius:var(--radius);padding:18px 14px;overflow:auto;display:flex;flex-direction:column;gap:22px}
+.main{
+  background:linear-gradient(180deg,#241733 0,#151520 300px,#101017 100%);
+  border-radius:var(--radius);overflow-y:auto;overflow-x:hidden;position:relative;-webkit-overflow-scrolling:touch;
+}
+.quickbar{grid-column:1/-1;grid-row:2;padding:10px 4px}
+
+/* ================= sidebar ================= */
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 0;font-weight:800;letter-spacing:.02em}
+.brand .disc{
+  width:30px;height:30px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 50% 50%,#0a0a0f 0 22%,var(--accent) 23% 55%,var(--accent2) 56% 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.12) inset;
+}
+.brand small{display:block;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.14em}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:9px;color:var(--muted);font-weight:700;font-size:14px;transition:.15s;text-align:left}
+.nav button:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nav button.active{color:var(--text);background:rgba(255,255,255,.09)}
+.nav .ico{font-size:17px;width:20px;text-align:center}
+.side-title{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.12em;padding:0 12px 8px}
+.stats{display:flex;flex-direction:column;gap:8px;padding:0 12px}
+.stat{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
+.stat b{font-size:19px;color:var(--text);font-variant-numeric:tabular-nums}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+.side-foot button{padding:9px 12px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--muted);border:1px solid var(--line);text-align:left;transition:.15s}
+.side-foot button:hover{color:var(--text);border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.04)}
+.side-foot button.on{color:var(--ok);border-color:rgba(61,220,151,.35)}
+
+/* ================= main header ================= */
+.topbar{
+  position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
+  padding:14px 26px;backdrop-filter:blur(14px);background:rgba(12,12,18,.55);
+  border-bottom:1px solid transparent;transition:.2s;
+}
+.topbar.stuck{border-bottom-color:var(--line);background:rgba(12,12,18,.88)}
+.search{position:relative;flex:1;max-width:380px}
+.search input{width:100%;padding:10px 14px 10px 38px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.06);outline:none;font-size:14px}
+.search input:focus{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+.search .mag{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+.chip{padding:8px 14px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--muted);transition:.15s;white-space:nowrap}
+.chip:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+.chip.on{background:var(--text);color:#0a0a0f;border-color:var(--text)}
+.spacer{flex:1}
+
+.hero{padding:14px 26px 6px}
+.hero h1{margin:0;font-size:clamp(26px,4vw,44px);font-weight:900;letter-spacing:-.02em;line-height:1.15}
+.hero p{margin:8px 0 0;color:var(--muted);font-size:13px}
+.content{padding:16px 26px 40px}
+.sortbar{display:none;gap:8px;padding:0 16px 4px;overflow-x:auto;scrollbar-width:none}
+.sortbar::-webkit-scrollbar{display:none}
+
+/* ================= table (desktop) ================= */
+table{width:100%;border-collapse:collapse}
+thead th{
+  position:sticky;top:56px;z-index:4;background:rgba(14,14,20,.92);backdrop-filter:blur(10px);
+  text-align:left;font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--muted);
+  padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none;
+}
+thead th.sortable{cursor:pointer}
+thead th.sortable:hover{color:var(--text)}
+thead th .arw{opacity:0;margin-left:4px;font-size:10px}
+thead th.act{color:var(--text)}
+thead th.act .arw{opacity:1;color:var(--accent)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.055)}
+tbody td{padding:10px 12px;font-size:14px;vertical-align:middle}
+.c-num{width:44px;color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px}
+.c-fav{width:44px}
+.c-key{width:88px}
+.c-date{width:110px;color:var(--muted);font-size:12.5px;white-space:nowrap}
+.c-act{width:96px;text-align:right;white-space:nowrap}
+.title-cell{display:flex;align-items:center;gap:12px;min-width:0}
+.thumb{width:40px;height:40px;border-radius:7px;flex:none;display:grid;place-items:center;font-weight:900;font-size:15px;color:rgba(255,255,255,.92);text-shadow:0 1px 3px rgba(0,0,0,.5);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.t-main{min-width:0}
+.t-main .tt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-main .ts{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.artist-cell{color:var(--muted);font-size:13.5px}
+.artist-cell b{color:var(--text);font-weight:600}
+.keytag{display:inline-block;min-width:46px;text-align:center;padding:4px 9px;border-radius:7px;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+.keytag.up{background:rgba(255,61,129,.16);border-color:rgba(255,61,129,.4);color:#ff8fb5}
+.keytag.down{background:rgba(96,165,250,.14);border-color:rgba(96,165,250,.38);color:#93c5fd}
+.fav{font-size:16px;color:#3f3f4d;transition:.15s}
+.fav:hover{color:#8b8b9e}
+.fav.on{color:var(--accent)}
+.rowbtn{padding:5px 9px;border-radius:7px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px solid transparent;transition:.15s}
+tbody tr:hover .rowbtn{border-color:var(--line)}
+.rowbtn:hover{color:var(--text);background:rgba(255,255,255,.1)}
+.rowbtn.danger:hover{color:#ff6b81;background:rgba(255,61,129,.14)}
+.rowbtn.add{color:var(--ok);border-color:rgba(61,220,151,.3)}
+.rowbtn.add:hover{background:rgba(61,220,151,.14)}
+.memo-cell{color:var(--muted);font-size:12.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge-in{font-size:11px;color:var(--ok);font-weight:700}
+
+/* ================= card rows (mobile) ================= */
+.mlist{display:flex;flex-direction:column}
+.mrow{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05)}
+.mrow:active{background:rgba(255,255,255,.06)}
+.mrow .thumb{width:46px;height:46px;border-radius:8px}
+.mbody{flex:1;min-width:0}
+.mbody .tt{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbody .ts{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.mtail{display:flex;align-items:center;gap:4px;flex:none}
+.mtail .fav{font-size:19px;width:38px;height:38px;display:grid;place-items:center}
+.mtail .addb{width:38px;height:38px;border-radius:50%;font-size:20px;color:var(--ok);border:1px solid rgba(61,220,151,.35);display:grid;place-items:center}
+.mtail .done{font-size:16px;color:var(--ok);width:38px;text-align:center}
+
+/* ================= artist cards ================= */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:16px}
+.acard{background:var(--card);border-radius:10px;padding:14px;transition:.18s;cursor:pointer;border:1px solid transparent}
+.acard:hover{background:var(--card-hi);border-color:var(--line);transform:translateY(-2px)}
+.acard .art{width:100%;aspect-ratio:1;border-radius:50%;margin-bottom:12px;display:grid;place-items:center;font-size:34px;font-weight:900;color:rgba(255,255,255,.9);box-shadow:0 8px 22px rgba(0,0,0,.45)}
+.acard .an{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acard .ac{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ================= panels ================= */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px}
+.panel h3{margin:0 0 6px;font-size:15px}
+.panel .note{color:var(--muted);font-size:12.5px;line-height:1.75;margin:0 0 12px}
+.panel textarea{width:100%;min-height:120px;resize:vertical;border-radius:10px;padding:12px;font-size:13px;background:rgba(0,0,0,.35);border:1px solid var(--line);outline:none;line-height:1.6;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.panel textarea:focus{border-color:rgba(255,255,255,.28)}
+.panel-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.btn{padding:9px 18px;border-radius:999px;font-size:13px;font-weight:800;transition:.15s;background:rgba(255,255,255,.1);border:1px solid var(--line)}
+.btn:hover{background:rgba(255,255,255,.16)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.ghost{background:none}
+.btn.danger{color:#ff6b81;background:none;border-color:rgba(255,107,129,.3)}
+
+/* ================= quick add / sheet ================= */
+.qa{display:flex;align-items:center;gap:12px;background:var(--elev);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
+.qa .handle{display:none}
+.qa .disc2{width:46px;height:46px;border-radius:50%;flex:none;background:radial-gradient(circle at 50% 50%,#0a0a0f 0 20%,#2d2d3d 21% 100%);display:grid;place-items:center;font-size:19px;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.qa .fields{display:flex;gap:10px;flex:1;min-width:0;flex-wrap:wrap}
+.qa input[type=text]{width:100%;padding:10px 13px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);outline:none;font-size:14px;min-width:0}
+.qa input[type=text]:focus{border-color:var(--accent);background:rgba(255,255,255,.09)}
+.stepper{display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.05);flex:none}
+.stepper button{width:34px;height:40px;font-size:17px;font-weight:800;color:var(--muted);border-radius:8px}
+.stepper button:active{color:var(--text);background:rgba(255,255,255,.12)}
+.stepper .val{min-width:54px;text-align:center;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.qa .lbl{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.1em;margin-bottom:4px;display:block}
+.qa .group{display:flex;flex-direction:column;min-width:0}
+
+/* ================= suggestions ================= */
+.sugwrap{position:relative;min-width:0}
+.suglist{
+  position:absolute;left:0;right:0;bottom:calc(100% + 8px);z-index:80;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 20px 50px rgba(0,0,0,.65);overflow-y:auto;max-height:300px;display:none;
+}
+.suglist.down{top:calc(100% + 6px);bottom:auto}
+.suglist.on{display:block}
+.sugitem{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
+.sugitem:last-child{border-bottom:none}
+.sugitem.active,.sugitem:hover{background:rgba(255,255,255,.09)}
+.sugitem .thumb{width:34px;height:34px;border-radius:6px;font-size:13px}
+.sugitem .sm{min-width:0;flex:1}
+.sugitem .s1{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sugitem .s2{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.sugitem mark{background:none;color:var(--accent);font-weight:800}
+.sugsrc{font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:2px 6px;border-radius:5px;flex:none;border:1px solid var(--line);color:var(--muted)}
+.sugsrc.local{color:var(--ok);border-color:rgba(61,220,151,.3)}
+.sughead{padding:7px 12px;font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--muted);background:rgba(0,0,0,.25)}
+
+/* ================= mobile chrome ================= */
+.tabbar,.fab,.scrim{display:none}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:55;opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.on{opacity:1;pointer-events:auto}
+
+/* ================= misc ================= */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty .big{font-size:52px;margin-bottom:14px;opacity:.55}
+.empty h3{color:var(--text);margin:0 0 8px;font-size:17px}
+.empty p{margin:0 0 18px;font-size:13px;line-height:1.8}
+dialog{border:1px solid var(--line);background:var(--elev);color:var(--text);border-radius:16px;padding:0;width:min(460px,92vw);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
+.dlg-h{padding:20px 22px 0;font-size:17px;font-weight:800}
+.dlg-b{padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.field label{display:block;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.1em;margin-bottom:6px}
+.field input,.field textarea{width:100%;padding:11px 13px;border-radius:9px;border:1px solid var(--line);background:rgba(0,0,0,.3);outline:none;font-size:15px}
+.field textarea{min-height:76px;resize:vertical}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.dlg-f{padding:0 22px 20px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.dlg-f .left{margin-right:auto}
+.toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);z-index:99;background:#f3f3f7;color:#0a0a0f;padding:11px 22px;border-radius:999px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* =========================================================
+   MOBILE  (<=860px)
+   ========================================================= */
+@media(max-width:860px){
+  .app{grid-template-columns:1fr;grid-template-rows:1fr;gap:0;padding:6px;padding-bottom:0}
+  .sidebar{display:none}
+  .main{border-radius:12px}
+  .topbar{padding:10px 14px;gap:8px}
+  .hero{padding:10px 16px 2px}
+  .hero h1{font-size:25px}
+  .hero p{font-size:12px;margin-top:5px}
+  .content{padding:10px 16px calc(var(--tabh) + 46px + env(safe-area-inset-bottom))}
+  .sortbar{display:flex}
+  .sortbar .chip{padding:6px 12px;font-size:12px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
+  .acard{padding:0;background:none}
+  .acard .art{margin-bottom:8px;font-size:26px;box-shadow:0 5px 14px rgba(0,0,0,.4)}
+  .acard .an{font-size:12.5px}
+  .acard .ac{font-size:11px}
+  .panel{padding:14px}
+
+  .tabbar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:rgba(12,12,18,.94);backdrop-filter:blur(18px);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--tabh);font-size:10px;font-weight:800;color:var(--muted)}
+  .tabbar button .ti{font-size:18px;line-height:1}
+  .tabbar button.active{color:var(--accent)}
+  .fab{
+    display:grid;place-items:center;position:fixed;right:16px;
+    bottom:calc(var(--tabh) + 16px + env(safe-area-inset-bottom));z-index:45;
+    width:56px;height:56px;border-radius:50%;font-size:27px;font-weight:300;color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 10px 26px rgba(255,61,129,.42);transition:transform .18s;
+  }
+  .fab:active{transform:scale(.9)}
+  .scrim{display:block}
+
+  /* クイック追加バー → ボトムシート化 */
+  .quickbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:60;padding:0;
+    transform:translateY(115%);transition:transform .3s cubic-bezier(.2,.85,.25,1);
+  }
+  .quickbar.open{transform:none}
+  .qa{
+    flex-direction:column;align-items:stretch;gap:13px;
+    border-radius:20px 20px 0 0;border-bottom:none;
+    padding:8px 16px calc(18px + env(safe-area-inset-bottom));
+    max-height:88dvh;overflow-y:auto;
+  }
+  .qa .handle{display:block;width:40px;height:4px;border-radius:2px;background:#3a3a48;margin:2px auto 6px;flex:none}
+  .qa .disc2{display:none}
+  .qa .fields{flex-direction:column;gap:13px;flex:none}
+  .qa .group{flex:none !important;width:100%}
+  .qa .group.keyrow{flex-direction:row;align-items:center;justify-content:space-between}
+  .qa .group.keyrow .lbl{margin:0}
+  .qa .btn.primary{width:100%;padding:14px;font-size:15px;border-radius:12px}
+  .suglist{max-height:44dvh}
+
+  dialog{width:100vw;max-width:100vw;margin:0 auto;position:fixed;left:0;right:0;bottom:0;top:auto;border-radius:20px 20px 0 0;border-bottom:none;max-height:92dvh;overflow-y:auto}
+  .dlg-f{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  .dlg-f .btn{flex:1;text-align:center;padding:13px}
+  .dlg-f .left{flex:0 0 100%;margin-right:0;order:9}
+  .toast{bottom:calc(var(--tabh) + 84px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ============ SIDEBAR (desktop) ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="disc"></div>
+      <div>Karaoke Memo<small>SONG STOCK</small></div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button data-view="memo" class="active"><span class="ico">♪</span>マイメモ</button>
+      <button data-view="artist"><span class="ico">◎</span>アーティスト</button>
+      <button data-view="history"><span class="ico">⟲</span>歌唱履歴（DAM★とも）</button>
+    </nav>
+
+    <div>
+      <div class="side-title">ライブラリ</div>
+      <div class="stats">
+        <div class="stat"><span>登録曲</span><b id="st-songs">0</b></div>
+        <div class="stat"><span>お気に入り</span><b id="st-fav">0</b></div>
+        <div class="stat"><span>アーティスト</span><b id="st-artists">0</b></div>
+        <div class="stat"><span>履歴レコード</span><b id="st-hist">0</b></div>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <button id="btn-online">◌　オンライン候補：OFF</button>
+      <button id="btn-export">⤓　バックアップを書き出す</button>
+      <button id="btn-import">⤒　バックアップを読み込む</button>
+      <button id="btn-csv">▤　メモをCSVで書き出す</button>
+      <input type="file" id="file-import" accept="application/json,.json" hidden>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main" id="main">
+    <div class="topbar" id="topbar">
+      <div class="search">
+        <span class="mag">⌕</span>
+        <input type="text" id="q" placeholder="曲名・アーティストで検索">
+      </div>
+      <button class="chip" id="chip-fav">★</button>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="hero">
+      <h1 id="hero-t">マイメモ</h1>
+      <p id="hero-s"></p>
+    </div>
+
+    <div class="sortbar" id="sortbar"></div>
+    <div class="content" id="content"></div>
+  </main>
+
+  <!-- ============ QUICK ADD (desktop bar / mobile sheet) ============ -->
+  <div class="quickbar" id="quickbar">
+    <div class="qa">
+      <div class="handle" id="sheet-handle"></div>
+      <div class="disc2">🎤</div>
+      <div class="fields">
+        <div class="group" style="flex:2 1 210px">
+          <span class="lbl">曲名</span>
+          <div class="sugwrap"><input type="text" id="qa-title" placeholder="入力すると候補が出ます" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        </div>
+        <div class="group" style="flex:1.6 1 170px">
+          <span class="lbl">アーティスト</span>
+          <div class="sugwrap"><input type="text" id="qa-artist" placeholder="例）YOASOBI" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        </div>
+        <div class="group keyrow">
+          <span class="lbl">キー</span>
+          <div class="stepper">
+            <button id="qa-minus" aria-label="キーを下げる">−</button>
+            <div class="val" id="qa-keyval">±0</div>
+            <button id="qa-plus" aria-label="キーを上げる">＋</button>
+          </div>
+        </div>
+        <div class="group" style="flex:1.2 1 140px">
+          <span class="lbl">メモ</span>
+          <input type="text" id="qa-memo" placeholder="サビが高い / 練習中 など" autocomplete="off">
+        </div>
+      </div>
+      <button class="btn primary" id="qa-save" style="flex:none">＋ 追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MOBILE CHROME ============ -->
+<div class="scrim" id="scrim"></div>
+<button class="fab" id="fab" aria-label="曲を追加">＋</button>
+<nav class="tabbar" id="tabbar">
+  <button data-view="memo" class="active"><span class="ti">♪</span>マイメモ</button>
+  <button data-view="artist"><span class="ti">◎</span>アーティスト</button>
+  <button data-view="history"><span class="ti">⟲</span>履歴</button>
+  <button data-view="more"><span class="ti">≡</span>その他</button>
+</nav>
+
+<!-- ============ EDIT DIALOG ============ -->
+<dialog id="dlg">
+  <div class="dlg-h">メモを編集</div>
+  <div class="dlg-b">
+    <div class="field"><label>曲名</label><div class="sugwrap"><input type="text" id="d-title" autocomplete="off"></div></div>
+    <div class="field"><label>アーティスト</label><div class="sugwrap"><input type="text" id="d-artist" autocomplete="off"></div></div>
+    <div class="field">
+      <label>キー</label>
+      <div class="stepper" style="width:fit-content">
+        <button id="d-minus">−</button><div class="val" id="d-keyval">±0</div><button id="d-plus">＋</button>
+      </div>
+    </div>
+    <div class="field"><label>メモ</label><textarea id="d-memo" placeholder="キー調整のコツ、歌いにくい箇所など"></textarea></div>
+  </div>
+  <div class="dlg-f">
+    <button class="btn danger left" id="d-del">削除</button>
+    <button class="btn ghost" id="d-cancel">キャンセル</button>
+    <button class="btn primary" id="d-save">保存</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   Karaoke Memo — 単一HTML / localStorage 保存
+   ========================================================= */
+const LS_SONGS  = 'karaokeMemo.songs.v1';
+const LS_HIST   = 'karaokeMemo.history.v1';
+const LS_ONLINE = 'karaokeMemo.online.v1';
+
+let songs   = load(LS_SONGS, []);
+let history = load(LS_HIST, []);
+let online  = load(LS_ONLINE, false);
+
+let view    = 'memo';
+let query   = '';
+let favOnly = false;
+let sortS   = { key:'createdAt', dir:'desc' };
+let sortH   = { key:'lastAt',    dir:'desc' };
+let qaKey   = 0;
+let dKey    = 0;
+let editing = null;
+
+const MQ = window.matchMedia('(max-width: 860px)');
+let isMobile = MQ.matches;
+
+/* ---------------- utils ---------------- */
+function load(k, def){ try{ const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; }catch{ return def; } }
+function save(){
+  localStorage.setItem(LS_SONGS, JSON.stringify(songs));
+  localStorage.setItem(LS_HIST, JSON.stringify(history));
+  localStorage.setItem(LS_ONLINE, JSON.stringify(online));
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtKey(k){ const n = Number(k) || 0; return n === 0 ? '±0' : (n > 0 ? '+'+n : String(n)); }
+function keyCls(k){ const n = Number(k) || 0; return n > 0 ? 'up' : (n < 0 ? 'down' : ''); }
+function fmtDate(ms){ if(!ms) return '—'; const d = new Date(ms); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; }
+function norm(s){ return String(s ?? '').trim().toLowerCase().replace(/[\s　]+/g,''); }
+function hue(str){ let h = 0; for(const c of String(str)) h = (h*31 + c.codePointAt(0)) % 360; return h; }
+function thumbStyle(seed){ const h = hue(seed); return `background:linear-gradient(135deg,hsl(${h} 68% 46%),hsl(${(h+52)%360} 66% 34%))`; }
+function initial(s){ return (String(s || '?').trim()[0] || '?').toUpperCase(); }
+
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function cmpVal(va, vb){
+  if(typeof va === 'number' && typeof vb === 'number') return va - vb;
+  return String(va).localeCompare(String(vb), 'ja');
+}
+function sorted(arr, st){
+  const dir = st.dir === 'desc' ? -1 : 1;
+  return [...arr].sort((a, b) => {
+    const va = a[st.key], vb = b[st.key];
+    const na = va === '' || va == null, nb = vb === '' || vb == null;
+    if(na && nb) return 0;
+    if(na) return 1;                 // 空欄は昇順/降順どちらでも末尾へ
+    if(nb) return -1;
+    return dir * cmpVal(va, vb);
+  });
+}
+function toggleSort(st, key, defDir){
+  if(st.key === key) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+  else { st.key = key; st.dir = defDir || 'asc'; }
+  render();
+}
+
+/* =========================================================
+   候補（サジェスト）
+   ========================================================= */
+const onlineCache = new Map();
+let onlineAbort = null;
+
+/** 手持ちデータ（メモ＋DAM履歴）から曲名・アーティストの候補を作る */
+function localCatalog(){
+  const map = new Map();
+  for(const s of [...songs, ...history]){
+    if(!s.title) continue;
+    const k = norm(s.title) + '|' + norm(s.artist);
+    if(!map.has(k)) map.set(k, { title:s.title, artist:s.artist || '', src:'local' });
+  }
+  return [...map.values()];
+}
+
+function localArtists(){
+  const map = new Map();
+  for(const s of [...songs, ...history]){
+    if(!s.artist) continue;
+    const k = norm(s.artist);
+    if(!map.has(k)) map.set(k, { title:s.artist, artist:'', src:'local', isArtist:true });
+  }
+  return [...map.values()];
+}
+
+async function fetchOnline(term, mode, signal){
+  const ck = mode + '::' + term;
+  if(onlineCache.has(ck)) return onlineCache.get(ck);
+  const entity = mode === 'artist' ? 'musicArtist' : 'song';
+  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=JP&media=music&entity=${entity}&limit=12`;
+  const res = await fetch(url, { signal });
+  if(!res.ok) throw new Error('search failed');
+  const data = await res.json();
+  const items = (data.results || []).map(r => mode === 'artist'
+    ? { title:r.artistName, artist:'', src:'online', isArtist:true }
+    : { title:r.trackName, artist:r.artistName, art:r.artworkUrl60, src:'online' }
+  ).filter(x => x.title);
+  onlineCache.set(ck, items);
+  return items;
+}
+
+function highlight(text, term){
+  const t = String(text ?? '');
+  if(!term) return esc(t);
+  const i = norm(t).indexOf(norm(term));
+  if(i < 0) return esc(t);
+  // norm() は空白を落とすため位置がずれうる。単純な大小無視検索でフォールバック。
+  const j = t.toLowerCase().indexOf(term.toLowerCase());
+  if(j < 0) return esc(t);
+  return esc(t.slice(0, j)) + '<mark>' + esc(t.slice(j, j + term.length)) + '</mark>' + esc(t.slice(j + term.length));
+}
+
+/**
+ * 入力欄に候補ドロップダウンを付ける
+ * mode: 'title' | 'artist'
+ * partner: 曲名を選んだときに埋めるアーティスト欄（任意）
+ */
+function attachSuggest(input, mode, partner){
+  const wrap = input.parentElement;
+  const list = document.createElement('div');
+  list.className = 'suglist';
+  wrap.appendChild(list);
+
+  let items = [], active = -1, timer = null, open = false;
+
+  function close(){ open = false; active = -1; list.classList.remove('on'); }
+
+  function place(){
+    const r = input.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    list.classList.toggle('down', below > 260 || below > r.top);
+  }
+
+  function draw(term, loading){
+    if(!items.length && !loading){ close(); return; }
+    const rows = items.map((it, i) => `
+      <div class="sugitem ${i === active ? 'active' : ''}" data-i="${i}">
+        <div class="thumb" style="${thumbStyle(it.artist || it.title)}">
+          ${it.art ? `<img src="${esc(it.art)}" alt="" loading="lazy">` : esc(initial(it.artist || it.title))}
+        </div>
+        <div class="sm">
+          <div class="s1">${highlight(it.title, term)}</div>
+          ${it.artist ? `<div class="s2">${esc(it.artist)}</div>` : (it.isArtist ? '<div class="s2">アーティスト</div>' : '')}
+        </div>
+        <span class="sugsrc ${it.src}">${it.src === 'local' ? '保存済' : 'ONLINE'}</span>
+      </div>`).join('');
+    list.innerHTML = rows + (loading ? '<div class="sughead">オンライン候補を検索中…</div>' : '');
+    place();
+    list.classList.add('on');
+    open = true;
+  }
+
+  function pick(i){
+    const it = items[i]; if(!it) return;
+    if(mode === 'title'){
+      input.value = it.title;
+      if(partner && it.artist && !partner.value.trim()) partner.value = it.artist;
+    } else {
+      input.value = it.title;
+    }
+    close();
+    input.dispatchEvent(new Event('change'));
+  }
+
+  async function run(){
+    const term = input.value.trim();
+    if(term.length < 1){ items = []; close(); return; }
+
+    const pool = mode === 'artist' ? localArtists() : localCatalog();
+    const n = norm(term);
+    items = pool.filter(x => norm(x.title).includes(n) || norm(x.artist).includes(n)).slice(0, 8);
+    active = -1;
+    draw(term, online && term.length >= 2);
+
+    if(!online || term.length < 2) return;
+    try{
+      if(onlineAbort) onlineAbort.abort();
+      onlineAbort = new AbortController();
+      const found = await fetchOnline(term, mode, onlineAbort.signal);
+      if(input.value.trim() !== term) return;          // 入力が変わっていたら破棄
+      const seen = new Set(items.map(x => norm(x.title) + '|' + norm(x.artist)));
+      for(const f of found){
+        const k = norm(f.title) + '|' + norm(f.artist);
+        if(seen.has(k)) continue;
+        seen.add(k); items.push(f);
+      }
+      items = items.slice(0, 16);
+      draw(term, false);
+    }catch(err){
+      if(err.name !== 'AbortError') draw(term, false);
+    }
+  }
+
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, online ? 260 : 60); });
+  input.addEventListener('focus', () => { if(input.value.trim()) run(); });
+  input.addEventListener('blur', () => setTimeout(close, 180));
+
+  // 上下キー・Enter・Esc。処理したキーは後続リスナー（Enterで保存）へ渡さない
+  input.addEventListener('keydown', e => {
+    if(!open || !items.length) return;
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault(); e.stopImmediatePropagation();
+      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      draw(input.value.trim(), false);
+      list.querySelector('.sugitem.active')?.scrollIntoView({ block:'nearest' });
+    } else if(e.key === 'Enter' && active >= 0){
+      e.preventDefault(); e.stopImmediatePropagation();
+      pick(active);
+    } else if(e.key === 'Escape'){
+      e.preventDefault(); e.stopImmediatePropagation();
+      close();
+    }
+  });
+
+  list.addEventListener('mousedown', e => e.preventDefault());   // blur を防ぐ
+  list.addEventListener('click', e => {
+    const it = e.target.closest('.sugitem'); if(!it) return;
+    pick(Number(it.dataset.i));
+  });
+}
+
+/* =========================================================
+   歌唱履歴の集計
+   ========================================================= */
+function aggHistory(){
+  const map = new Map();
+  for(const r of history){
+    const k = norm(r.title) + ' ' + norm(r.artist);
+    let e = map.get(k);
+    if(!e){ e = { key:k, title:r.title, artist:r.artist, count:0, lastAt:null, best:null }; map.set(k, e); }
+    e.count++;
+    if(r.date && (!e.lastAt || r.date > e.lastAt)) e.lastAt = r.date;
+    if(r.score != null && (e.best == null || r.score > e.best)) e.best = r.score;
+    if(!e.artist && r.artist) e.artist = r.artist;
+  }
+  const owned = new Set(songs.map(s => norm(s.title) + ' ' + norm(s.artist)));
+  const ownedTitles = new Set(songs.map(s => norm(s.title)));
+  for(const e of map.values()) e.inMemo = owned.has(e.key) || ownedTitles.has(norm(e.title));
+  return [...map.values()];
+}
+
+function filterList(list){
+  const q = norm(query);
+  return list.filter(x => {
+    if(favOnly && view === 'memo' && !x.fav) return false;
+    if(!q) return true;
+    return norm(x.title).includes(q) || norm(x.artist).includes(q) || norm(x.memo).includes(q);
+  });
+}
+
+/* =========================================================
+   描画
+   ========================================================= */
+function render(){
+  document.getElementById('st-songs').textContent   = songs.length;
+  document.getElementById('st-fav').textContent     = songs.filter(s => s.fav).length;
+  document.getElementById('st-artists').textContent = new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size;
+  document.getElementById('st-hist').textContent    = history.length;
+  document.getElementById('btn-online').textContent = (online ? '●' : '◌') + '　オンライン候補：' + (online ? 'ON' : 'OFF');
+  document.getElementById('btn-online').classList.toggle('on', online);
+
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.getElementById('chip-fav').classList.toggle('on', favOnly);
+  document.getElementById('chip-fav').textContent = isMobile ? (favOnly ? '★' : '☆') : '★ お気に入りのみ';
+  document.getElementById('chip-fav').style.display = view === 'memo' ? '' : 'none';
+
+  renderSortbar();
+  ({ memo:renderMemo, artist:renderArtist, history:renderHistory, more:renderMore })[view]();
+}
+
+/* ---- モバイル用ソートチップ ---- */
+const SORTDEFS = {
+  memo:    [['createdAt','追加日','desc'],['title','曲名','asc'],['artist','アーティスト','asc'],['key','キー','asc']],
+  history: [['lastAt','最終歌唱','desc'],['count','歌唱回数','desc'],['best','最高得点','desc'],['title','曲名','asc'],['artist','アーティスト','asc']],
+};
+function renderSortbar(){
+  const bar = document.getElementById('sortbar');
+  const defs = SORTDEFS[view];
+  if(!isMobile || !defs){ bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const st = view === 'history' ? sortH : sortS;
+  bar.innerHTML = defs.map(([k, label, dir]) => {
+    const on = st.key === k;
+    return `<button class="chip ${on ? 'on' : ''}" data-sk="${k}" data-dir="${dir}">${label}${on ? (st.dir === 'asc' ? ' ▲' : ' ▼') : ''}</button>`;
+  }).join('');
+}
+
+/* ---- マイメモ ---- */
+function renderMemo(){
+  document.getElementById('hero-t').textContent = 'マイメモ';
+  const list = filterList(songs);
+  document.getElementById('hero-s').textContent =
+    `${songs.length} 曲を保存中${list.length !== songs.length ? `（表示中 ${list.length} 曲）` : ''}` +
+    (isMobile ? '　—　右下の＋から追加' : '　—　下のバーからすぐ追加できます');
+
+  const c = document.getElementById('content');
+  if(!songs.length){
+    c.innerHTML = `
+      <div class="empty">
+        <div class="big">🎵</div>
+        <h3>まだメモがありません</h3>
+        <p>カラオケで「これ歌いたい」と思ったら、${isMobile ? '右下の＋ボタン' : '画面下のバー'}から曲名を入力。<br>
+        入力途中で候補が出るので、選ぶだけでアーティストも入ります。</p>
+        <button class="btn primary" id="btn-sample">サンプルデータを入れてみる</button>
+      </div>`;
+    document.getElementById('btn-sample').onclick = addSamples;
+    return;
+  }
+  if(!list.length){ c.innerHTML = `<div class="empty"><div class="big">🔍</div><h3>該当する曲がありません</h3><p>検索条件を変えてみてください。</p></div>`; return; }
+
+  const rows = sorted(list, sortS);
+
+  if(isMobile){
+    c.innerHTML = `<div class="mlist">${rows.map(s => `
+      <div class="mrow" data-id="${s.id}">
+        <div class="thumb" style="${thumbStyle(s.artist || s.title)}">${esc(initial(s.artist || s.title))}</div>
+        <div class="mbody" data-act="edit">
+          <div class="tt">${esc(s.title)}</div>
+          <div class="ts">${esc(s.artist || 'アーティスト未設定')}${s.memo ? '　・　' + esc(s.memo) : ''}</div>
+        </div>
+        <div class="mtail">
+          <span class="keytag ${keyCls(s.key)}">${fmtKey(s.key)}</span>
+          <button class="fav ${s.fav ? 'on' : ''}" data-act="fav">${s.fav ? '★' : '☆'}</button>
+        </div>
+      </div>`).join('')}</div>`;
+    return;
+  }
+
+  c.innerHTML = `
+    <table>
+      <thead><tr>
+        <th class="c-num">#</th>
+        <th class="c-fav"></th>
+        ${th(sortS,'title','曲名')}
+        ${th(sortS,'artist','アーティスト')}
+        ${th(sortS,'key','キー','c-key')}
+        <th class="c-memo">メモ</th>
+        ${th(sortS,'createdAt','追加日','c-date','desc')}
+        <th class="c-act"></th>
+      </tr></thead>
+      <tbody>${rows.map((s,i) => `
+        <tr data-id="${s.id}">
+          <td class="c-num">${i+1}</td>
+          <td class="c-fav"><button class="fav ${s.fav?'on':''}" data-act="fav" title="お気に入り">${s.fav?'★':'☆'}</button></td>
+          <td>
+            <div class="title-cell">
+              <div class="thumb" style="${thumbStyle(s.artist || s.title)}">${esc(initial(s.artist || s.title))}</div>
+              <div class="t-main"><div class="tt">${esc(s.title)}</div><div class="ts">${esc(s.artist || 'アーティスト未設定')}</div></div>
+            </div>
+          </td>
+          <td class="artist-cell">${s.artist ? `<b>${esc(s.artist)}</b>` : '—'}</td>
+          <td class="c-key"><span class="keytag ${keyCls(s.key)}">${fmtKey(s.key)}</span></td>
+          <td class="c-memo memo-cell" title="${esc(s.memo)}">${esc(s.memo) || '—'}</td>
+          <td class="c-date">${fmtDate(s.createdAt)}</td>
+          <td class="c-act">
+            <button class="rowbtn" data-act="edit">編集</button>
+            <button class="rowbtn danger" data-act="del">削除</button>
+          </td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function th(st, key, label, cls = '', defDir = 'asc'){
+  const on = st.key === key;
+  return `<th class="sortable ${cls} ${on?'act':''}" data-sort="${key}" data-dir="${defDir}">${label}<span class="arw">${on ? (st.dir==='asc'?'▲':'▼') : '▲'}</span></th>`;
+}
+
+/* ---- アーティスト ---- */
+function renderArtist(){
+  document.getElementById('hero-t').textContent = 'アーティスト';
+  const map = new Map();
+  for(const s of filterList(songs)){
+    const name = s.artist || '(未設定)';
+    const k = norm(name);
+    if(!map.has(k)) map.set(k, { name, count:0, fav:0 });
+    const e = map.get(k); e.count++; if(s.fav) e.fav++;
+  }
+  const list = [...map.values()].sort((a,b) => b.count - a.count || a.name.localeCompare(b.name,'ja'));
+  document.getElementById('hero-s').textContent = `${list.length} 組　—　${isMobile ? 'タップ' : 'カードを押す'}でそのアーティストの曲だけ表示`;
+
+  const c = document.getElementById('content');
+  c.innerHTML = list.length ? `<div class="grid">${list.map(a => `
+      <div class="acard" data-artist="${esc(a.name)}">
+        <div class="art" style="${thumbStyle(a.name)}">${esc(initial(a.name))}</div>
+        <div class="an">${esc(a.name)}</div>
+        <div class="ac">${a.count} 曲${a.fav ? ` ・ ★${a.fav}` : ''}</div>
+      </div>`).join('')}</div>`
+    : `<div class="empty"><div class="big">◎</div><h3>アーティストがまだありません</h3><p>メモを追加するとここに並びます。</p></div>`;
+}
+
+/* ---- 歌唱履歴 ---- */
+function renderHistory(){
+  document.getElementById('hero-t').textContent = isMobile ? '歌唱履歴' : '歌唱履歴（DAM★とも）';
+  const agg = filterList(aggHistory());
+  document.getElementById('hero-s').textContent = `${history.length} 件の記録 / ${agg.length} 曲　—　気になった曲はワンタップでメモへ`;
+
+  const rows = sorted(agg, sortH);
+  const c = document.getElementById('content');
+
+  const panel = `
+    <div class="panel">
+      <h3>DAM★とも の歌唱履歴を取り込む</h3>
+      <p class="note">
+        DAM★とも には外部アプリ向けの公開APIがないため、<b>コピー＆ペースト取り込み</b>方式です。<br>
+        DAM★とものマイページで「歌唱履歴」を開き、表を選択してコピー → 下の欄に貼り付けて「取り込む」。
+        CSV・TSV（Excelからの貼り付け）どちらもOK。<code>曲名 / アーティスト / 歌唱日 / 点数</code> の列を見出しから自動判定します。
+      </p>
+      <textarea id="imp-text" placeholder="曲名,アーティスト,歌唱日,点数&#10;夜に駆ける,YOASOBI,2026/07/28,88.512&#10;Pretender,Official髭男dism,2026/07/28,91.204"></textarea>
+      <div class="panel-actions">
+        <button class="btn primary" id="imp-run">取り込む</button>
+        <button class="btn ghost" id="imp-clear">履歴を全消去</button>
+        <span style="color:var(--muted);font-size:12px" id="imp-msg"></span>
+      </div>
+    </div>`;
+
+  if(!rows.length){
+    c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>上の欄に DAM★とも の歌唱履歴を貼り付けてください。</p></div>`;
+  } else if(isMobile){
+    c.innerHTML = panel + `<div class="mlist">${rows.map(r => `
+      <div class="mrow" data-hkey="${esc(r.key)}">
+        <div class="thumb" style="${thumbStyle(r.artist || r.title)}">${esc(initial(r.artist || r.title))}</div>
+        <div class="mbody">
+          <div class="tt">${esc(r.title)}</div>
+          <div class="ts">${esc(r.artist || '—')}　・　${r.count}回${r.best != null ? `　・　最高 ${r.best.toFixed(3)}` : ''}　・　${fmtDate(r.lastAt)}</div>
+        </div>
+        <div class="mtail">${r.inMemo ? '<span class="done">✓</span>' : '<button class="addb" data-act="tomemo">＋</button>'}</div>
+      </div>`).join('')}</div>`;
+  } else {
+    c.innerHTML = panel + `
+      <table>
+        <thead><tr>
+          <th class="c-num">#</th>
+          ${th(sortH,'title','曲名')}
+          ${th(sortH,'artist','アーティスト')}
+          ${th(sortH,'count','歌唱回数','c-key','desc')}
+          ${th(sortH,'best','最高得点','c-key','desc')}
+          ${th(sortH,'lastAt','最終歌唱','c-date','desc')}
+          <th class="c-act"></th>
+        </tr></thead>
+        <tbody>${rows.map((r,i) => `
+          <tr data-hkey="${esc(r.key)}">
+            <td class="c-num">${i+1}</td>
+            <td>
+              <div class="title-cell">
+                <div class="thumb" style="${thumbStyle(r.artist || r.title)}">${esc(initial(r.artist || r.title))}</div>
+                <div class="t-main"><div class="tt">${esc(r.title)}</div><div class="ts">${esc(r.artist || '—')}</div></div>
+              </div>
+            </td>
+            <td class="artist-cell">${r.artist ? `<b>${esc(r.artist)}</b>` : '—'}</td>
+            <td class="c-key"><span class="keytag">${r.count}回</span></td>
+            <td class="c-key">${r.best != null ? r.best.toFixed(3) : '—'}</td>
+            <td class="c-date">${fmtDate(r.lastAt)}</td>
+            <td class="c-act">${r.inMemo ? '<span class="badge-in">✓ メモ済</span>' : '<button class="rowbtn add" data-act="tomemo">＋ メモへ</button>'}</td>
+          </tr>`).join('')}</tbody>
+      </table>`;
+  }
+
+  document.getElementById('imp-run').onclick = runImport;
+  document.getElementById('imp-clear').onclick = () => {
+    if(!history.length) return;
+    if(confirm(`歌唱履歴 ${history.length} 件をすべて削除します。よろしいですか？`)){ history = []; save(); render(); toast('履歴を削除しました'); }
+  };
+}
+
+/* ---- その他（モバイル用の設定タブ） ---- */
+function renderMore(){
+  document.getElementById('hero-t').textContent = 'その他';
+  document.getElementById('hero-s').textContent = 'ライブラリの状況とデータの入出力';
+  document.getElementById('content').innerHTML = `
+    <div class="panel">
+      <h3>ライブラリ</h3>
+      <div class="stats" style="padding:8px 0 0">
+        <div class="stat"><span>登録曲</span><b>${songs.length}</b></div>
+        <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
+        <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
+        <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>入力候補</h3>
+      <p class="note">
+        保存済みのメモとDAM★とも履歴からの候補は常に表示されます。<br>
+        <b>オンライン候補</b>をONにすると、入力した文字列を Apple の iTunes Search API に送信して曲名・アーティスト候補を取得します（通信が発生します）。
+      </p>
+      <button class="btn ${online ? 'primary' : ''}" id="m-online">オンライン候補：${online ? 'ON' : 'OFF'}</button>
+    </div>
+    <div class="panel">
+      <h3>データ</h3>
+      <p class="note">データはこの端末のブラウザ内（localStorage）にのみ保存されます。機種変更前にはバックアップを書き出してください。</p>
+      <div class="panel-actions">
+        <button class="btn" id="m-export">バックアップ書き出し</button>
+        <button class="btn" id="m-import">読み込み</button>
+        <button class="btn" id="m-csv">CSV書き出し</button>
+      </div>
+    </div>`;
+  document.getElementById('m-online').onclick = toggleOnline;
+  document.getElementById('m-export').onclick = doExport;
+  document.getElementById('m-import').onclick = () => document.getElementById('file-import').click();
+  document.getElementById('m-csv').onclick    = doCsv;
+}
+
+/* =========================================================
+   履歴インポート（CSV / TSV）
+   ========================================================= */
+function splitLine(line, delim){
+  if(delim === '\t') return line.split('\t').map(s => s.trim());
+  const out = []; let cur = '', inQ = false;
+  for(let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if(inQ){
+      if(ch === '"'){ if(line[i+1] === '"'){ cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else if(ch === '"') inQ = true;
+    else if(ch === ',') { out.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+function parseDate(s){
+  if(!s) return null;
+  const t = String(s).replace(/年|\//g,'-').replace(/月/g,'-').replace(/日/g,' ').trim();
+  const m = t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]).getTime();
+  const p = Date.parse(t);
+  return isNaN(p) ? null : p;
+}
+function parseScore(s){
+  const m = String(s ?? '').match(/\d+(\.\d+)?/);
+  if(!m) return null;
+  const v = parseFloat(m[0]);
+  return v >= 0 && v <= 100 ? v : null;
+}
+const HEAD = {
+  title : ['曲名','タイトル','楽曲','楽曲名','歌唱曲','song','title'],
+  artist: ['アーティスト','アーティスト名','歌手','歌手名','artist'],
+  date  : ['日付','歌唱日','歌唱日時','日時','date','歌った日'],
+  score : ['点数','得点','採点','score','精密採点'],
+};
+function detectHeader(cells){
+  const idx = {}; let hit = 0;
+  cells.forEach((c, i) => {
+    const v = norm(c);
+    for(const [field, keys] of Object.entries(HEAD)){
+      if(idx[field] == null && keys.some(k => v.includes(norm(k)))){ idx[field] = i; hit++; }
+    }
+  });
+  return hit >= 2 ? idx : null;
+}
+function runImport(){
+  const text  = document.getElementById('imp-text').value;
+  const lines = text.replace(/\r\n?/g,'\n').split('\n').filter(l => l.trim() !== '');
+  if(!lines.length){ document.getElementById('imp-msg').textContent = '貼り付ける内容がありません。'; return; }
+
+  const delim = lines[0].split('\t').length > lines[0].split(',').length ? '\t' : ',';
+  const rows  = lines.map(l => splitLine(l, delim));
+
+  let idx = detectHeader(rows[0]);
+  let body = rows;
+  if(idx) body = rows.slice(1);
+  else idx = { title:0, artist:1, date:2, score:3 };
+
+  const seen = new Set(history.map(r => norm(r.title) + '|' + norm(r.artist) + '|' + (r.date || '')));
+  let added = 0, skipped = 0;
+
+  for(const r of body){
+    const title = String(r[idx.title] ?? '').trim();
+    if(!title) continue;
+    const rec = {
+      id: uid(),
+      title,
+      artist: String(idx.artist != null ? (r[idx.artist] ?? '') : '').trim(),
+      date: parseDate(idx.date != null ? r[idx.date] : ''),
+      score: parseScore(idx.score != null ? r[idx.score] : ''),
+    };
+    const sig = norm(rec.title) + '|' + norm(rec.artist) + '|' + (rec.date || '');
+    if(seen.has(sig)){ skipped++; continue; }
+    seen.add(sig); history.push(rec); added++;
+  }
+
+  save(); render();
+  const m = document.getElementById('imp-msg');
+  if(m) m.textContent = `${added} 件を取り込みました${skipped ? `（重複 ${skipped} 件はスキップ）` : ''}`;
+  toast(added ? `${added} 件の履歴を取り込みました` : '新しい履歴はありませんでした');
+}
+
+/* =========================================================
+   追加・編集・削除
+   ========================================================= */
+function addSong(title, artist, key, memo){
+  title = String(title || '').trim();
+  if(!title){ toast('曲名を入力してください'); document.getElementById('qa-title').focus(); return false; }
+  songs.push({
+    id: uid(), title,
+    artist: String(artist || '').trim(),
+    key: Number(key) || 0,
+    memo: String(memo || '').trim(),
+    fav: false,
+    createdAt: Date.now(),
+  });
+  save(); render(); toast(`「${title}」を追加しました`);
+  return true;
+}
+function addSamples(){
+  const now = Date.now(), day = 86400000;
+  [
+    ['夜に駆ける','YOASOBI',-2,'サビの高音がきつい。−2でちょうどいい'],
+    ['Pretender','Official髭男dism',-3,'原曲キーは無理'],
+    ['丸の内サディスティック','椎名林檎',0,'いつもの1曲目'],
+    ['オトナブルー','新しい学校のリーダーズ',2,'アドリブ部分を練習'],
+    ['ライラック','Mrs. GREEN APPLE',-1,'テンポ速い'],
+    ['花束を君に','宇多田ヒカル',1,'バラード枠'],
+  ].forEach(([t,a,k,m], i) => songs.push({ id:uid(), title:t, artist:a, key:k, memo:m, fav:i<2, createdAt: now - (6-i)*day }));
+  save(); render(); toast('サンプルデータを追加しました');
+}
+function openEdit(id){
+  const s = songs.find(x => x.id === id); if(!s) return;
+  editing = id; dKey = s.key;
+  document.getElementById('d-title').value  = s.title;
+  document.getElementById('d-artist').value = s.artist;
+  document.getElementById('d-memo').value   = s.memo;
+  document.getElementById('d-keyval').textContent = fmtKey(dKey);
+  document.getElementById('dlg').showModal();
+}
+
+/* =========================================================
+   ボトムシート（モバイル追加フォーム）
+   ========================================================= */
+const quickbar = document.getElementById('quickbar');
+const scrim    = document.getElementById('scrim');
+function openSheet(){
+  if(!isMobile) { document.getElementById('qa-title').focus(); return; }
+  quickbar.classList.add('open'); scrim.classList.add('on');
+  setTimeout(() => document.getElementById('qa-title').focus(), 260);
+}
+function closeSheet(){ quickbar.classList.remove('open'); scrim.classList.remove('on'); }
+
+/* =========================================================
+   イベント
+   ========================================================= */
+document.getElementById('nav').onclick = e => {
+  const b = e.target.closest('button[data-view]'); if(!b) return;
+  view = b.dataset.view; render(); document.getElementById('main').scrollTop = 0;
+};
+document.getElementById('tabbar').onclick = e => {
+  const b = e.target.closest('button[data-view]'); if(!b) return;
+  view = b.dataset.view; closeSheet(); render(); document.getElementById('main').scrollTop = 0;
+};
+document.getElementById('q').oninput = e => { query = e.target.value; render(); };
+document.getElementById('chip-fav').onclick = () => { favOnly = !favOnly; render(); };
+document.getElementById('fab').onclick = openSheet;
+scrim.onclick = closeSheet;
+document.getElementById('sheet-handle').onclick = closeSheet;
+
+/* ソートチップ（モバイル） */
+document.getElementById('sortbar').onclick = e => {
+  const b = e.target.closest('button[data-sk]'); if(!b) return;
+  toggleSort(view === 'history' ? sortH : sortS, b.dataset.sk, b.dataset.dir);
+};
+
+/* 本文クリック */
+document.getElementById('content').addEventListener('click', e => {
+  const sortTh = e.target.closest('th[data-sort]');
+  if(sortTh){ toggleSort(view === 'history' ? sortH : sortS, sortTh.dataset.sort, sortTh.dataset.dir); return; }
+
+  const card = e.target.closest('.acard');
+  if(card){ query = card.dataset.artist; document.getElementById('q').value = query; view = 'memo'; render(); return; }
+
+  const hrow = e.target.closest('[data-hkey]');
+  if(hrow && e.target.closest('[data-act="tomemo"]')){
+    const rec = aggHistory().find(r => r.key === hrow.dataset.hkey); if(!rec) return;
+    addSong(rec.title, rec.artist, 0, `DAM★とも履歴より（${rec.count}回歌唱${rec.best != null ? ` / 最高 ${rec.best.toFixed(3)}点` : ''}）`);
+    return;
+  }
+
+  const row = e.target.closest('[data-id]'); if(!row) return;
+  const s = songs.find(x => x.id === row.dataset.id); if(!s) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+
+  if(act === 'fav'){ s.fav = !s.fav; save(); render(); return; }
+  if(act === 'del'){
+    if(confirm(`「${s.title}」を削除します。よろしいですか？`)){ songs = songs.filter(x => x.id !== s.id); save(); render(); toast('削除しました'); }
+    return;
+  }
+  if(act === 'edit' || isMobile) openEdit(s.id);   // モバイルは行タップで編集
+});
+
+/* クイック追加 */
+function setQaKey(v){ qaKey = Math.max(-12, Math.min(12, v)); document.getElementById('qa-keyval').textContent = fmtKey(qaKey); }
+document.getElementById('qa-minus').onclick = () => setQaKey(qaKey - 1);
+document.getElementById('qa-plus').onclick  = () => setQaKey(qaKey + 1);
+document.getElementById('qa-save').onclick  = quickSave;
+function quickSave(){
+  const t = document.getElementById('qa-title'), a = document.getElementById('qa-artist'), m = document.getElementById('qa-memo');
+  if(addSong(t.value, a.value, qaKey, m.value)){
+    t.value = ''; a.value = ''; m.value = ''; setQaKey(0);
+    if(isMobile) closeSheet(); else t.focus();
+  }
+}
+
+/* サジェストを先に登録 → Enter は候補選択が優先される */
+attachSuggest(document.getElementById('qa-title'),  'title', document.getElementById('qa-artist'));
+attachSuggest(document.getElementById('qa-artist'), 'artist');
+attachSuggest(document.getElementById('d-title'),   'title', document.getElementById('d-artist'));
+attachSuggest(document.getElementById('d-artist'),  'artist');
+
+['qa-title','qa-artist','qa-memo'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => { if(e.key === 'Enter') quickSave(); });
+});
+
+/* 編集ダイアログ */
+function setDKey(v){ dKey = Math.max(-12, Math.min(12, v)); document.getElementById('d-keyval').textContent = fmtKey(dKey); }
+document.getElementById('d-minus').onclick  = () => setDKey(dKey - 1);
+document.getElementById('d-plus').onclick   = () => setDKey(dKey + 1);
+document.getElementById('d-cancel').onclick = () => document.getElementById('dlg').close();
+document.getElementById('d-del').onclick    = () => {
+  const s = songs.find(x => x.id === editing); if(!s) return;
+  if(confirm(`「${s.title}」を削除します。よろしいですか？`)){
+    songs = songs.filter(x => x.id !== editing); save(); render();
+    document.getElementById('dlg').close(); toast('削除しました');
+  }
+};
+document.getElementById('d-save').onclick = () => {
+  const s = songs.find(x => x.id === editing); if(!s) return;
+  const t = document.getElementById('d-title').value.trim();
+  if(!t){ toast('曲名を入力してください'); return; }
+  s.title  = t;
+  s.artist = document.getElementById('d-artist').value.trim();
+  s.memo   = document.getElementById('d-memo').value.trim();
+  s.key    = dKey;
+  save(); render(); document.getElementById('dlg').close(); toast('保存しました');
+};
+
+/* オンライン候補トグル */
+function toggleOnline(){
+  if(!online){
+    const ok = confirm(
+      'オンライン候補をONにすると、入力した文字列を Apple の iTunes Search API に送信して曲名・アーティストの候補を取得します。\n' +
+      '（通信が発生します。OFFのままでも、保存済みメモとDAM★とも履歴からの候補は表示されます）\n\nONにしますか？');
+    if(!ok) return;
+  }
+  online = !online; onlineCache.clear(); save(); render();
+  toast(online ? 'オンライン候補をONにしました' : 'オンライン候補をOFFにしました');
+}
+document.getElementById('btn-online').onclick = toggleOnline;
+
+/* データ入出力 */
+function download(name, content, type){
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function doExport(){
+  download(`karaoke-memo-${new Date().toISOString().slice(0,10)}.json`,
+    JSON.stringify({ version:1, exportedAt:new Date().toISOString(), songs, history }, null, 2), 'application/json');
+  toast('バックアップを書き出しました');
+}
+function doCsv(){
+  const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const csv = ['曲名,アーティスト,キー,メモ,お気に入り,追加日',
+    ...sorted(songs, sortS).map(s => [s.title, s.artist, fmtKey(s.key), s.memo, s.fav ? '★' : '', fmtDate(s.createdAt)].map(q).join(','))
+  ].join('\r\n');
+  download('karaoke-memo.csv', '﻿' + csv, 'text/csv');   // BOM付きで Excel の文字化けを回避
+  toast('CSVを書き出しました');
+}
+document.getElementById('btn-export').onclick = doExport;
+document.getElementById('btn-csv').onclick    = doCsv;
+document.getElementById('btn-import').onclick = () => document.getElementById('file-import').click();
+document.getElementById('file-import').onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      const d = JSON.parse(rd.result);
+      if(!Array.isArray(d.songs)) throw new Error('形式が違います');
+      if(!confirm('現在のデータを読み込んだ内容で置き換えます。よろしいですか？')) return;
+      songs = d.songs; history = Array.isArray(d.history) ? d.history : [];
+      save(); render(); toast('読み込みました');
+    }catch(err){ alert('読み込めませんでした: ' + err.message); }
+  };
+  rd.readAsText(f); e.target.value = '';
+};
+
+/* スクロール／画面幅／ショートカット */
+document.getElementById('main').addEventListener('scroll', e => {
+  document.getElementById('topbar').classList.toggle('stuck', e.target.scrollTop > 8);
+});
+MQ.addEventListener('change', e => { isMobile = e.matches; closeSheet(); render(); });
+document.addEventListener('keydown', e => {
+  if(e.target.matches('input,textarea')) return;
+  if(e.key === '/'){ e.preventDefault(); document.getElementById('q').focus(); }
+  if(e.key === 'n'){ e.preventDefault(); openSheet(); }
+});
+
+render();
+</script>
+</body>
+</html>

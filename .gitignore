@@ -1,0 +1,4 @@
+.check.js
+*.log
+.DS_Store
+Thumbs.db
