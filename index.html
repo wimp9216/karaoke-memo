@@ -662,10 +662,18 @@ function attachSuggest(input, mode, partner){
 /* =========================================================
    DAM★とも アカウント
    damtomoId は会員番号（CDMカード番号）を Base64 したもの。
-   例）MTAzNzg0NjE2 → 103784616
+   例）MTIzNDU2Nzg5 → 123456789
    ========================================================= */
-const DAM_PROFILE = 'https://www.clubdam.com/app/damtomo/member/info/Profile.do?damtomoId=';
-const DAM_MYPAGE  = 'https://www.clubdam.com/app/damtomo/MyPage.do';
+const DAM_PROFILE   = 'https://www.clubdam.com/app/damtomo/member/info/Profile.do?damtomoId=';
+const DAM_SCORING   = 'https://www.clubdam.com/app/damtomo/SP/scoring/public/';
+
+/* 採点方式ごとの公開りれきページ。damtomoId だけで開けます
+   （cdmCardNo はサーバーが補完、cdmToken は不要） */
+const SCORING = [
+  ['ScoringHeartsList', '精密採点AiHeart'],
+  ['ScoringAiList',     '精密採点Ai'],
+  ['ScoringDxgList',    '精密採点DX-G'],
+];
 
 /** URL / damtomoId / 会員番号 のいずれを渡しても {cardNo, damtomoId} を返す */
 function parseDamId(input){
@@ -675,18 +683,18 @@ function parseDamId(input){
   if(m) s = m[1];
   s = s.replace(/\s/g,'');
 
-  if(/^\d{5,15}$/.test(s)){                       // 会員番号を直接入力
+  if(/^\d{5,15}$/.test(s)){                          // 会員番号を直接入力された場合
     try{ return { cardNo:s, damtomoId: btoa(s) }; }catch{ return null; }
   }
-  if(/^[A-Za-z0-9+/]+={0,2}$/.test(s)){           // damtomoId（Base64）
-    try{
-      const d = atob(s);
-      if(/^\d{5,15}$/.test(d)) return { cardNo:d, damtomoId:s };
-    }catch{}
+  if(/^[A-Za-z0-9+/]{8,32}={0,2}$/.test(s)){         // damtomoId（会員番号のBase64）
+    let cardNo = '';
+    try{ const d = atob(s); if(/^\d{5,20}$/.test(d)) cardNo = d; }catch{}
+    return { cardNo, damtomoId:s };                  // デコードできなくてもIDとして受け付ける
   }
   return null;
 }
 function damProfileUrl(d){ return DAM_PROFILE + encodeURIComponent(d.damtomoId); }
+function damScoringUrl(page, d){ return DAM_SCORING + page + '.do?damtomoId=' + encodeURIComponent(d.damtomoId) + '&detailFlg=0'; }
 
 /* DAM★とものページ上で実行して、表をCSVにしてクリップボードへコピーするブックマークレット */
 const BOOKMARKLET = `javascript:(function(){var r=[];document.querySelectorAll('table tr').forEach(function(tr){var c=[].map.call(tr.querySelectorAll('th,td'),function(t){return '"'+t.textContent.replace(/\\s+/g,' ').trim().replace(/"/g,'""')+'"';});if(c.length)r.push(c.join(','));});if(!r.length){alert('表が見つかりませんでした');return;}var s=r.join('\\n');function f(){window.prompt('コピーしてカラオケメモに貼り付けてください',s);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(function(){alert(r.length+'行をコピーしました');},f);}else{f();}})();`;
@@ -883,27 +891,32 @@ function renderHistory(){
     <div class="panel">
       <h3>DAM★とも アカウント</h3>
       <div class="damid">
-        <div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>
         <div><span class="dl">DAM★とも ID</span><b>${esc(dam.damtomoId)}</b></div>
+        ${dam.cardNo ? `<div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>` : ''}
+      </div>
+      <div class="side-title" style="padding:4px 0 8px">歌唱履歴を開く</div>
+      <div class="panel-actions">
+        ${SCORING.map(([page, label]) =>
+          `<a class="btn primary" href="${esc(damScoringUrl(page, dam))}" target="_blank" rel="noopener">${label}</a>`).join('')}
       </div>
       <div class="panel-actions">
-        <a class="btn primary" href="${esc(damProfileUrl(dam))}" target="_blank" rel="noopener">プロフィールを開く</a>
-        <a class="btn" href="${DAM_MYPAGE}" target="_blank" rel="noopener">マイページで歌唱履歴を開く</a>
+        <a class="btn" href="${esc(damProfileUrl(dam))}" target="_blank" rel="noopener">プロフィール</a>
         <button class="btn ghost" id="dam-clear">解除</button>
       </div>
-      <p class="note" style="margin:12px 0 0">
-        歌唱履歴はDAM★ともへのログインが必要です。上のボタンでマイページを開き、履歴の表をコピーして下の欄に貼り付けてください。
+      <p class="note" style="margin:14px 0 0">
+        開いたページの表をコピーして、下の欄に貼り付ければ取り込めます。
       </p>
     </div>` : `
     <div class="panel">
-      <h3>DAM★とも アカウントを設定</h3>
+      <h3>DAM★とも アカウントを登録</h3>
       <p class="note">
-        プロフィールURL・DAM★とも ID・会員番号のどれを入れてもOKです（<code>damtomoId</code> は会員番号をBase64化したもので、自動で相互変換します）。<br>
-        例）<code>https://www.clubdam.com/app/damtomo/member/info/Profile.do?damtomoId=MTAzNzg0NjE2</code>
+        DAM★とものプロフィールURL <code>…Profile.do?damtomoId=<b>MTIzNDU2Nzg5</b></code> の
+        <b>= より後ろの12桁</b>があなたのアカウントコードです。それを貼り付けてください。<br>
+        URLをまるごと貼っても、会員番号（数字）を入れても自動で判別します。
       </p>
-      <input type="text" id="dam-input" class="dam-in" placeholder="URL / damtomoId / 会員番号 を貼り付け" autocomplete="off" spellcheck="false">
+      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false">
       <div class="panel-actions">
-        <button class="btn primary" id="dam-set">アカウントを設定</button>
+        <button class="btn primary" id="dam-set">アカウントを登録</button>
         <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
       </div>
     </div>`;
@@ -912,7 +925,7 @@ function renderHistory(){
     <div class="panel">
       <h3>歌唱履歴を取り込む</h3>
       <p class="note">
-        DAM★ともの履歴ページで表を選択してコピー → 下に貼り付けて「取り込む」。
+        上のボタンで開いた採点りれきページの表を選択してコピー → 下に貼り付けて「取り込む」。
         <b>CSV・TSV・HTML（ページからそのままコピー）</b>を自動判別し、<code>曲名 / アーティスト / 歌唱日 / 点数</code> の列を見出しから探します。<br>
         PCなら「ブックマークレットをコピー」で取得したコードをブックマークに登録しておくと、履歴ページで押すだけで表がCSVでコピーされます。
       </p>
@@ -984,7 +997,7 @@ function renderHistory(){
         return;
       }
       dam = parsed; save(); render();
-      toast(`会員番号 ${parsed.cardNo} を設定しました`);
+      toast(parsed.cardNo ? `会員番号 ${parsed.cardNo} を登録しました` : 'アカウントを登録しました');
     };
     setBtn.onclick = go;
     inp.addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
@@ -1009,7 +1022,7 @@ function renderMore(){
         <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
         <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
         <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
-        <div class="stat"><span>DAM★とも会員番号</span><b>${dam ? esc(dam.cardNo) : '未設定'}</b></div>
+        <div class="stat"><span>DAM★とも ID</span><b>${dam ? esc(dam.damtomoId) : '未登録'}</b></div>
       </div>
     </div>
     <div class="panel">
