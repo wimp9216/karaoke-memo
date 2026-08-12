@@ -169,6 +169,13 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .btn.primary:hover{filter:brightness(1.12)}
 .btn.ghost{background:none}
 .btn.danger{color:#ff6b81;background:none;border-color:rgba(255,107,129,.3)}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;color:inherit}
+.dam-in{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);outline:none;font-size:14px}
+.dam-in:focus{border-color:var(--accent)}
+.damid{display:flex;flex-wrap:wrap;gap:10px 28px;margin-bottom:14px}
+.damid .dl{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);margin-bottom:3px}
+.damid b{font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:.02em;word-break:break-all}
+.panel code{background:rgba(0,0,0,.4);padding:1px 5px;border-radius:4px;font-size:11.5px;word-break:break-all}
 
 /* ================= quick add / sheet ================= */
 .qa{display:flex;align-items:center;gap:12px;background:var(--elev);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
@@ -424,10 +431,12 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 const LS_SONGS  = 'karaokeMemo.songs.v1';
 const LS_HIST   = 'karaokeMemo.history.v1';
 const LS_ONLINE = 'karaokeMemo.online.v1';
+const LS_DAM    = 'karaokeMemo.dam.v1';
 
 let songs   = load(LS_SONGS, []);
 let history = load(LS_HIST, []);
 let online  = load(LS_ONLINE, false);
+let dam     = load(LS_DAM, null);      // { cardNo, damtomoId }
 
 let view    = 'memo';
 let query   = '';
@@ -447,6 +456,7 @@ function save(){
   localStorage.setItem(LS_SONGS, JSON.stringify(songs));
   localStorage.setItem(LS_HIST, JSON.stringify(history));
   localStorage.setItem(LS_ONLINE, JSON.stringify(online));
+  localStorage.setItem(LS_DAM, JSON.stringify(dam));
 }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -650,6 +660,47 @@ function attachSuggest(input, mode, partner){
 }
 
 /* =========================================================
+   DAM★とも アカウント
+   damtomoId は会員番号（CDMカード番号）を Base64 したもの。
+   例）MTAzNzg0NjE2 → 103784616
+   ========================================================= */
+const DAM_PROFILE = 'https://www.clubdam.com/app/damtomo/member/info/Profile.do?damtomoId=';
+const DAM_MYPAGE  = 'https://www.clubdam.com/app/damtomo/MyPage.do';
+
+/** URL / damtomoId / 会員番号 のいずれを渡しても {cardNo, damtomoId} を返す */
+function parseDamId(input){
+  let s = String(input || '').trim();
+  if(!s) return null;
+  const m = s.match(/damtomoId=([A-Za-z0-9+/=]+)/i);
+  if(m) s = m[1];
+  s = s.replace(/\s/g,'');
+
+  if(/^\d{5,15}$/.test(s)){                       // 会員番号を直接入力
+    try{ return { cardNo:s, damtomoId: btoa(s) }; }catch{ return null; }
+  }
+  if(/^[A-Za-z0-9+/]+={0,2}$/.test(s)){           // damtomoId（Base64）
+    try{
+      const d = atob(s);
+      if(/^\d{5,15}$/.test(d)) return { cardNo:d, damtomoId:s };
+    }catch{}
+  }
+  return null;
+}
+function damProfileUrl(d){ return DAM_PROFILE + encodeURIComponent(d.damtomoId); }
+
+/* DAM★とものページ上で実行して、表をCSVにしてクリップボードへコピーするブックマークレット */
+const BOOKMARKLET = `javascript:(function(){var r=[];document.querySelectorAll('table tr').forEach(function(tr){var c=[].map.call(tr.querySelectorAll('th,td'),function(t){return '"'+t.textContent.replace(/\\s+/g,' ').trim().replace(/"/g,'""')+'"';});if(c.length)r.push(c.join(','));});if(!r.length){alert('表が見つかりませんでした');return;}var s=r.join('\\n');function f(){window.prompt('コピーしてカラオケメモに貼り付けてください',s);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(function(){alert(r.length+'行をコピーしました');},f);}else{f();}})();`;
+
+async function copyText(text, okMsg){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(okMsg);
+  }catch{
+    window.prompt('コピーしてください', text);
+  }
+}
+
+/* =========================================================
    歌唱履歴の集計
    ========================================================= */
 function aggHistory(){
@@ -828,17 +879,47 @@ function renderHistory(){
   const rows = sorted(agg, sortH);
   const c = document.getElementById('content');
 
-  const panel = `
+  const accPanel = dam ? `
     <div class="panel">
-      <h3>DAM★とも の歌唱履歴を取り込む</h3>
+      <h3>DAM★とも アカウント</h3>
+      <div class="damid">
+        <div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>
+        <div><span class="dl">DAM★とも ID</span><b>${esc(dam.damtomoId)}</b></div>
+      </div>
+      <div class="panel-actions">
+        <a class="btn primary" href="${esc(damProfileUrl(dam))}" target="_blank" rel="noopener">プロフィールを開く</a>
+        <a class="btn" href="${DAM_MYPAGE}" target="_blank" rel="noopener">マイページで歌唱履歴を開く</a>
+        <button class="btn ghost" id="dam-clear">解除</button>
+      </div>
+      <p class="note" style="margin:12px 0 0">
+        歌唱履歴はDAM★ともへのログインが必要です。上のボタンでマイページを開き、履歴の表をコピーして下の欄に貼り付けてください。
+      </p>
+    </div>` : `
+    <div class="panel">
+      <h3>DAM★とも アカウントを設定</h3>
       <p class="note">
-        DAM★とも には外部アプリ向けの公開APIがないため、<b>コピー＆ペースト取り込み</b>方式です。<br>
-        DAM★とものマイページで「歌唱履歴」を開き、表を選択してコピー → 下の欄に貼り付けて「取り込む」。
-        CSV・TSV（Excelからの貼り付け）どちらもOK。<code>曲名 / アーティスト / 歌唱日 / 点数</code> の列を見出しから自動判定します。
+        プロフィールURL・DAM★とも ID・会員番号のどれを入れてもOKです（<code>damtomoId</code> は会員番号をBase64化したもので、自動で相互変換します）。<br>
+        例）<code>https://www.clubdam.com/app/damtomo/member/info/Profile.do?damtomoId=MTAzNzg0NjE2</code>
+      </p>
+      <input type="text" id="dam-input" class="dam-in" placeholder="URL / damtomoId / 会員番号 を貼り付け" autocomplete="off" spellcheck="false">
+      <div class="panel-actions">
+        <button class="btn primary" id="dam-set">アカウントを設定</button>
+        <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
+      </div>
+    </div>`;
+
+  const panel = accPanel + `
+    <div class="panel">
+      <h3>歌唱履歴を取り込む</h3>
+      <p class="note">
+        DAM★ともの履歴ページで表を選択してコピー → 下に貼り付けて「取り込む」。
+        <b>CSV・TSV・HTML（ページからそのままコピー）</b>を自動判別し、<code>曲名 / アーティスト / 歌唱日 / 点数</code> の列を見出しから探します。<br>
+        PCなら「ブックマークレットをコピー」で取得したコードをブックマークに登録しておくと、履歴ページで押すだけで表がCSVでコピーされます。
       </p>
       <textarea id="imp-text" placeholder="曲名,アーティスト,歌唱日,点数&#10;夜に駆ける,YOASOBI,2026/07/28,88.512&#10;Pretender,Official髭男dism,2026/07/28,91.204"></textarea>
       <div class="panel-actions">
         <button class="btn primary" id="imp-run">取り込む</button>
+        <button class="btn" id="imp-bm">ブックマークレットをコピー</button>
         <button class="btn ghost" id="imp-clear">履歴を全消去</button>
         <span style="color:var(--muted);font-size:12px" id="imp-msg"></span>
       </div>
@@ -887,9 +968,32 @@ function renderHistory(){
   }
 
   document.getElementById('imp-run').onclick = runImport;
+  document.getElementById('imp-bm').onclick  = () => copyText(BOOKMARKLET, 'ブックマークレットをコピーしました');
   document.getElementById('imp-clear').onclick = () => {
     if(!history.length) return;
     if(confirm(`歌唱履歴 ${history.length} 件をすべて削除します。よろしいですか？`)){ history = []; save(); render(); toast('履歴を削除しました'); }
+  };
+
+  const setBtn = document.getElementById('dam-set');
+  if(setBtn){
+    const inp = document.getElementById('dam-input');
+    const go = () => {
+      const parsed = parseDamId(inp.value);
+      if(!parsed){
+        document.getElementById('dam-msg').textContent = 'IDを読み取れませんでした。プロフィールURLをそのまま貼り付けてみてください。';
+        return;
+      }
+      dam = parsed; save(); render();
+      toast(`会員番号 ${parsed.cardNo} を設定しました`);
+    };
+    setBtn.onclick = go;
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+  }
+  const clearBtn = document.getElementById('dam-clear');
+  if(clearBtn) clearBtn.onclick = () => {
+    if(confirm('設定したDAM★ともアカウントを解除します。取り込み済みの履歴は残ります。')){
+      dam = null; save(); render(); toast('アカウント設定を解除しました');
+    }
   };
 }
 
@@ -905,6 +1009,7 @@ function renderMore(){
         <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
         <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
         <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
+        <div class="stat"><span>DAM★とも会員番号</span><b>${dam ? esc(dam.cardNo) : '未設定'}</b></div>
       </div>
     </div>
     <div class="panel">
@@ -978,18 +1083,40 @@ function detectHeader(cells){
   });
   return hit >= 2 ? idx : null;
 }
+/** HTML をそのまま貼り付けられた場合、表の行を取り出す */
+function rowsFromHtml(text){
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const out = [];
+  doc.querySelectorAll('tr').forEach(tr => {
+    const cells = [...tr.querySelectorAll('th,td')].map(td => td.textContent.replace(/\s+/g,' ').trim());
+    if(cells.some(c => c)) out.push(cells);
+  });
+  return out;
+}
+
 function runImport(){
-  const text  = document.getElementById('imp-text').value;
-  const lines = text.replace(/\r\n?/g,'\n').split('\n').filter(l => l.trim() !== '');
-  if(!lines.length){ document.getElementById('imp-msg').textContent = '貼り付ける内容がありません。'; return; }
+  const text = document.getElementById('imp-text').value;
+  const msgEl = document.getElementById('imp-msg');
+  let rows;
 
-  const delim = lines[0].split('\t').length > lines[0].split(',').length ? '\t' : ',';
-  const rows  = lines.map(l => splitLine(l, delim));
+  if(/<\s*(table|tr|td|th|tbody|html|body)\b/i.test(text)){        // HTML 貼り付け
+    rows = rowsFromHtml(text);
+    if(!rows.length){ msgEl.textContent = 'HTMLらしき内容ですが、表が見つかりませんでした。'; return; }
+  } else {                                                          // CSV / TSV
+    const lines = text.replace(/\r\n?/g,'\n').split('\n').filter(l => l.trim() !== '');
+    if(!lines.length){ msgEl.textContent = '貼り付ける内容がありません。'; return; }
+    const delim = lines[0].split('\t').length > lines[0].split(',').length ? '\t' : ',';
+    rows = lines.map(l => splitLine(l, delim));
+  }
 
-  let idx = detectHeader(rows[0]);
-  let body = rows;
-  if(idx) body = rows.slice(1);
-  else idx = { title:0, artist:1, date:2, score:3 };
+  // 見出し行は先頭とは限らないので、最初の数行から探す
+  let idx = null, headerRow = -1;
+  for(let i = 0; i < Math.min(rows.length, 6); i++){
+    const d = detectHeader(rows[i]);
+    if(d){ idx = d; headerRow = i; break; }
+  }
+  let body = idx ? rows.slice(headerRow + 1) : rows;
+  if(!idx) idx = { title:0, artist:1, date:2, score:3 };
 
   const seen = new Set(history.map(r => norm(r.title) + '|' + norm(r.artist) + '|' + (r.date || '')));
   let added = 0, skipped = 0;
