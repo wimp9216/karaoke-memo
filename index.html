@@ -134,6 +134,9 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .rowbtn.add:hover{background:rgba(61,220,151,.14)}
 .memo-cell{color:var(--muted);font-size:12.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge-in{font-size:11px;color:var(--ok);font-weight:700}
+.mchip{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(139,92,246,.16);border:1px solid rgba(139,92,246,.35);color:#c4b5fd;margin:2px 4px 0 0;white-space:nowrap}
+.rawline{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.dam-fetch-msg{color:var(--muted);font-size:12px;flex:1;min-width:0}
 
 /* ================= card rows (mobile) ================= */
 .mlist{display:flex;flex-direction:column}
@@ -172,6 +175,9 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;color:inherit}
 .dam-in{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);outline:none;font-size:14px}
 .dam-in:focus{border-color:var(--accent)}
+.pwrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.pwrow .dam-in{flex:1;min-width:150px}
+.lockbox{margin:6px 0 4px;padding:14px;border:1px dashed rgba(255,255,255,.16);border-radius:10px;background:rgba(139,92,246,.05)}
 .damid{display:flex;flex-wrap:wrap;gap:10px 28px;margin-bottom:14px}
 .damid .dl{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);margin-bottom:3px}
 .damid b{font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:.02em;word-break:break-all}
@@ -431,12 +437,20 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 const LS_SONGS  = 'karaokeMemo.songs.v1';
 const LS_HIST   = 'karaokeMemo.history.v1';
 const LS_ONLINE = 'karaokeMemo.online.v1';
-const LS_DAM    = 'karaokeMemo.dam.v1';
+const LS_DAM    = 'karaokeMemo.dam.v1';        // 旧: 平文アカウント（移行用）
+const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 新: パスワードで暗号化したアカウント
+const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
 
 let songs   = load(LS_SONGS, []);
 let history = load(LS_HIST, []);
 let online  = load(LS_ONLINE, false);
-let dam     = load(LS_DAM, null);      // { cardNo, damtomoId }
+let backendMode = 'none';              // 'local'(server.js) | 'proxy'(Worker等) | 'none'
+let proxyUrl    = load(LS_PROXY, '') || '';   // 取得proxyのURL
+
+let damEnc    = load(LS_DAMENC, null); // { v, salt, iv, ct } or null（暗号化アカウント）
+let dam       = load(LS_DAM, null);    // 現在リンク中のアカウント { damtomoId, cardNo } or null
+let damLocked = false;                 // 暗号化アカウントがあり、まだ解錠していない
+if(damEnc){ dam = null; damLocked = true; }   // パスワード保護あり → 起動時はロック状態
 
 let view    = 'memo';
 let query   = '';
@@ -456,7 +470,7 @@ function save(){
   localStorage.setItem(LS_SONGS, JSON.stringify(songs));
   localStorage.setItem(LS_HIST, JSON.stringify(history));
   localStorage.setItem(LS_ONLINE, JSON.stringify(online));
-  localStorage.setItem(LS_DAM, JSON.stringify(dam));
+  // アカウントは平文保存しない（暗号化ブロブは登録/解除時に個別保存）
 }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -716,16 +730,193 @@ function aggHistory(){
   for(const r of history){
     const k = norm(r.title) + ' ' + norm(r.artist);
     let e = map.get(k);
-    if(!e){ e = { key:k, title:r.title, artist:r.artist, count:0, lastAt:null, best:null }; map.set(k, e); }
+    if(!e){ e = { key:k, title:r.title, artist:r.artist, count:0, lastAt:null, best:null, bestRaw:null, modeSet:new Set() }; map.set(k, e); }
     e.count++;
     if(r.date && (!e.lastAt || r.date > e.lastAt)) e.lastAt = r.date;
     if(r.score != null && (e.best == null || r.score > e.best)) e.best = r.score;
+    if(r.rawScore != null && (e.bestRaw == null || r.rawScore > e.bestRaw)) e.bestRaw = r.rawScore;
+    if(r.mode) e.modeSet.add(r.mode);
     if(!e.artist && r.artist) e.artist = r.artist;
   }
   const owned = new Set(songs.map(s => norm(s.title) + ' ' + norm(s.artist)));
   const ownedTitles = new Set(songs.map(s => norm(s.title)));
-  for(const e of map.values()) e.inMemo = owned.has(e.key) || ownedTitles.has(norm(e.title));
+  for(const e of map.values()){
+    e.inMemo = owned.has(e.key) || ownedTitles.has(norm(e.title));
+    e.modes = [...e.modeSet]; delete e.modeSet;
+  }
   return [...map.values()];
+}
+
+/* 履歴レコードの重複判定キー（採点IDがあれば優先） */
+function histSig(r){
+  if(r.scoringId) return 'sid:' + r.scoringId;
+  return norm(r.title) + '|' + norm(r.artist) + '|' + (r.date || '');
+}
+
+/* =========================================================
+   DAM★とも 精密採点履歴の自動取得
+   取得口は2通り: ローカルサーバー(server.js) か proxy(Cloudflare Worker等)
+   ・同一オリジンに /api/health があれば 'local'
+   ・無ければ proxyUrl が設定されていれば 'proxy'
+   ========================================================= */
+async function detectBackend(){
+  try{
+    const r = await fetch('/api/health', { cache:'no-store' });
+    if(r.ok && (await r.json()).status === 'ok'){ backendMode = 'local'; if(view === 'history') render(); return; }
+  }catch{}
+  backendMode = proxyUrl ? 'proxy' : 'none';
+  if(view === 'history') render();
+}
+
+/* 取得先URLを組み立てる（local: 同一オリジンAPI / proxy: Worker等） */
+function historyUrl(damtomoId){
+  const q = 'damtomoId=' + encodeURIComponent(damtomoId);
+  if(backendMode === 'local') return '/api/damtomo/history?' + q;
+  if(backendMode === 'proxy' && proxyUrl) return proxyUrl + (proxyUrl.includes('?') ? '&' : '?') + q;
+  return null;
+}
+
+async function fetchDamHistory(btn){
+  if(!dam || !dam.damtomoId){ toast('先にDAM★ともアカウントを登録してください'); return; }
+  const setMsg = t => { const m = document.getElementById('dam-fetch-msg'); if(m) m.textContent = t; };
+  const url = historyUrl(dam.damtomoId);
+  if(!url){ toast('取得サーバー(proxy)のURLを設定してください'); setMsg('取得サーバーが未設定です。下の欄にproxyのURLを保存してください。'); return; }
+  if(btn){ btn.disabled = true; btn.textContent = '取得中…'; }
+  setMsg('DAM★ともから精密採点履歴を取得中…（曲数が多いと少し時間がかかります）');
+  try{
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    const recs = Array.isArray(data.records) ? data.records : [];
+    if(!recs.length){
+      setMsg(data.message || '履歴が見つかりませんでした。'); toast('新しい履歴はありませんでした');
+      if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
+      return;
+    }
+
+    const seen = new Set(history.map(histSig));
+    let added = 0;
+    for(const r of recs){
+      const title = String(r.title || '').trim();
+      if(!title) continue;
+      const rec = {
+        id: uid(),
+        scoringId: r.id || null,
+        title,
+        artist: String(r.artist || '').trim(),
+        date: parseDate(r.sungAt),
+        score: r.score != null ? r.score : null,
+        rawScore: r.rawScore != null ? r.rawScore : null,
+        bonus: r.bonus != null ? r.bonus : null,
+        mode: r.mode || null,
+      };
+      const sig = histSig(rec);
+      if(seen.has(sig)) continue;
+      seen.add(sig); history.push(rec); added++;
+    }
+    save(); render();
+    toast(added ? `${added} 件の精密採点履歴を取り込みました` : `取得済みでした（${recs.length}件を確認）`);
+  }catch(err){
+    setMsg('取得に失敗しました: ' + err.message);
+    toast('取得に失敗しました');
+    if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
+  }
+}
+
+/* =========================================================
+   アカウントのパスワード保護（Web Crypto / AES-GCM + PBKDF2）
+   ・登録時にパスワードで暗号化して端末に保存
+   ・次回はパスワードを入力するだけで解錠 → 連携
+   ※ これは端末内でアカウント情報を守るためのローカルな合言葉で、
+     DAM★とものログインパスワードではありません
+   ========================================================= */
+function cryptoOK(){ return !!(window.crypto && crypto.subtle); }
+function bufToB64(buf){ let s = ''; const a = new Uint8Array(buf); for(let i=0;i<a.length;i++) s += String.fromCharCode(a[i]); return btoa(s); }
+function b64ToBuf(b64){ const s = atob(b64); const a = new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i] = s.charCodeAt(i); return a.buffer; }
+
+async function damDeriveKey(password, salt){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+async function damEncryptAccount(account, password){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await damDeriveKey(password, salt);
+  const ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(account)));
+  return { v:1, salt:bufToB64(salt), iv:bufToB64(iv), ct:bufToB64(ct) };
+}
+async function damDecryptAccount(blob, password){
+  const salt = new Uint8Array(b64ToBuf(blob.salt));
+  const iv   = new Uint8Array(b64ToBuf(blob.iv));
+  const key  = await damDeriveKey(password, salt);
+  const pt   = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, b64ToBuf(blob.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// パスワードで暗号化して保存し、そのまま連携状態にする
+async function saveEncryptedAccount(account, password){
+  damEnc = await damEncryptAccount(account, password);
+  localStorage.setItem(LS_DAMENC, JSON.stringify(damEnc));
+  localStorage.removeItem(LS_DAM);   // 平文は残さない
+  dam = account; damLocked = false;
+}
+
+// 新規登録: DAM★ともID＋パスワードをまとめて登録
+async function damRegister(){
+  const idEl = document.getElementById('dam-input');
+  const setMsg = t => { const m = document.getElementById('dam-msg'); if(m) m.textContent = t; };
+  const parsed = parseDamId(idEl ? idEl.value : '');
+  if(!parsed){ setMsg('IDを読み取れませんでした。プロフィールURLをそのまま貼り付けてみてください。'); return; }
+  const pw  = (document.getElementById('dam-pw')  || {}).value || '';
+  const pw2 = (document.getElementById('dam-pw2') || {}).value || '';
+  if(pw.length < 4){ setMsg('パスワードは4文字以上にしてください。'); return; }
+  if(pw !== pw2){ setMsg('確認用パスワードが一致しません。'); return; }
+  if(!cryptoOK()){ setMsg('この環境では暗号化を利用できません。http://localhost で開いてください。'); return; }
+  try{
+    await saveEncryptedAccount(parsed, pw);
+    render(); toast('アカウントを登録しました');
+  }catch(err){ setMsg('登録に失敗しました: ' + err.message); }
+}
+
+// 次回以降: パスワードで解錠して連携
+async function damUnlock(){
+  const setMsg = t => { const m = document.getElementById('dam-login-msg'); if(m) m.textContent = t; };
+  if(!damEnc) return;
+  const pw = (document.getElementById('dam-login-pw') || {}).value || '';
+  if(!pw){ setMsg('パスワードを入力してください。'); return; }
+  if(!cryptoOK()){ setMsg('この環境では復号できません。http://localhost で開いてください。'); return; }
+  try{
+    const account = await damDecryptAccount(damEnc, pw);
+    dam = account; damLocked = false;
+    render(); toast('ログインしました');
+  }catch{ setMsg('パスワードが違います。'); }
+}
+
+// 旧バージョンの平文アカウントに後からパスワードを設定
+async function damSetPassword(){
+  const setMsg = t => { const m = document.getElementById('dam-newpw-msg'); if(m) m.textContent = t; };
+  if(!dam) return;
+  const pw  = (document.getElementById('dam-newpw')  || {}).value || '';
+  const pw2 = (document.getElementById('dam-newpw2') || {}).value || '';
+  if(pw.length < 4){ setMsg('パスワードは4文字以上にしてください。'); return; }
+  if(pw !== pw2){ setMsg('確認用パスワードが一致しません。'); return; }
+  if(!cryptoOK()){ setMsg('この環境では暗号化を利用できません。http://localhost で開いてください。'); return; }
+  try{
+    await saveEncryptedAccount(dam, pw);
+    render(); toast('パスワードを設定しました');
+  }catch(err){ setMsg('設定に失敗しました: ' + err.message); }
+}
+
+function damLockAccount(){ dam = null; damLocked = !!damEnc; render(); toast('ロックしました'); }
+
+function damDeleteAccount(){
+  if(!confirm('保存したアカウントとパスワードを削除します。よろしいですか？（取り込み済みの履歴は残ります）')) return;
+  damEnc = null; dam = null; damLocked = false;
+  localStorage.removeItem(LS_DAMENC);
+  localStorage.removeItem(LS_DAM);
+  render(); toast('アカウントを削除しました');
 }
 
 function filterList(list){
@@ -887,39 +1078,93 @@ function renderHistory(){
   const rows = sorted(agg, sortH);
   const c = document.getElementById('content');
 
-  const accPanel = dam ? `
+  const canFetch = backendMode === 'local' || backendMode === 'proxy';
+  const modeLabel = backendMode === 'local' ? 'ローカルサーバー' : (backendMode === 'proxy' ? '取得サーバー(proxy)' : '');
+  const fetchBlock = `
+      ${canFetch ? `
+      <div class="panel-actions" style="margin:0 0 8px">
+        <button class="btn primary" id="dam-fetch">⟳ 精密採点履歴を自動取得</button>
+        <span class="dam-fetch-msg" id="dam-fetch-msg"></span>
+      </div>
+      <p class="note" style="margin:0 0 12px">${modeLabel}に接続済み。DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>` : ''}
+      ${backendMode !== 'local' ? `
+      <div class="lockbox" style="margin:0 0 12px">
+        <div class="side-title" style="padding:0 0 6px">🌐 取得サーバー(proxy)の設定</div>
+        <p class="note" style="margin:0 0 8px">
+          ${proxyUrl ? '設定済みです。変更する場合のみ編集してください。' : 'GitHub Pages 等からボタンで取得するには、あなた専用の proxy(Cloudflare Worker) の URL が必要です（設定は一度だけ）。手順は同梱の <code>README.md</code> を参照。'}
+        </p>
+        <div class="pwrow">
+          <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
+          <button class="btn" id="dam-proxy-save">保存</button>
+        </div>
+      </div>` : ''}`;
+
+  let accPanel;
+  if(dam){                                          // ── 連携中 ──
+    accPanel = `
     <div class="panel">
       <h3>DAM★とも アカウント</h3>
       <div class="damid">
         <div><span class="dl">DAM★とも ID</span><b>${esc(dam.damtomoId)}</b></div>
         ${dam.cardNo ? `<div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>` : ''}
       </div>
-      <div class="side-title" style="padding:4px 0 8px">歌唱履歴を開く</div>
+      ${fetchBlock}
+      ${!damEnc ? `
+      <div class="lockbox">
+        <div class="side-title" style="padding:0 0 6px">🔒 パスワードを設定して保護</div>
+        <p class="note" style="margin:0 0 10px">設定すると、次回からはパスワードを入力するだけで連携できます。</p>
+        <div class="pwrow">
+          <input type="password" id="dam-newpw"  class="dam-in" placeholder="パスワード（4文字以上）" autocomplete="new-password">
+          <input type="password" id="dam-newpw2" class="dam-in" placeholder="確認用にもう一度" autocomplete="new-password">
+        </div>
+        <div class="panel-actions">
+          <button class="btn primary" id="dam-newpw-set">パスワードを設定</button>
+          <span style="color:var(--muted);font-size:12px" id="dam-newpw-msg"></span>
+        </div>
+      </div>` : ''}
+      <div class="side-title" style="padding:12px 0 8px">歌唱履歴を開く（手動コピペ用）</div>
       <div class="panel-actions">
         ${SCORING.map(([page, label]) =>
-          `<a class="btn primary" href="${esc(damScoringUrl(page, dam))}" target="_blank" rel="noopener">${label}</a>`).join('')}
-      </div>
-      <div class="panel-actions">
+          `<a class="btn" href="${esc(damScoringUrl(page, dam))}" target="_blank" rel="noopener">${label}</a>`).join('')}
         <a class="btn" href="${esc(damProfileUrl(dam))}" target="_blank" rel="noopener">プロフィール</a>
-        <button class="btn ghost" id="dam-clear">解除</button>
       </div>
-      <p class="note" style="margin:14px 0 0">
-        開いたページの表をコピーして、下の欄に貼り付ければ取り込めます。
-      </p>
-    </div>` : `
+      <div class="panel-actions" style="margin-top:14px">
+        ${damEnc ? `<button class="btn ghost" id="dam-lock">🔒 ロック</button>` : ''}
+        <button class="btn ghost" id="dam-delete">アカウントを削除</button>
+      </div>
+    </div>`;
+  } else if(damLocked){                             // ── ロック中（パスワード待ち）──
+    accPanel = `
+    <div class="panel">
+      <h3>DAM★とも アカウント連携</h3>
+      <p class="note" style="margin:0 0 12px">保存済みのアカウントがあります。パスワードを入力してログインしてください。</p>
+      <input type="password" id="dam-login-pw" class="dam-in" placeholder="パスワード" autocomplete="current-password">
+      <div class="panel-actions">
+        <button class="btn primary" id="dam-login">ログイン</button>
+        <button class="btn ghost" id="dam-delete">別のアカウントにする（削除）</button>
+        <span style="color:var(--muted);font-size:12px" id="dam-login-msg"></span>
+      </div>
+    </div>`;
+  } else {                                          // ── 未登録 ──
+    accPanel = `
     <div class="panel">
       <h3>DAM★とも アカウントを登録</h3>
       <p class="note">
         DAM★とものプロフィールURL <code>…Profile.do?damtomoId=<b>MTIzNDU2Nzg5</b></code> の
-        <b>= より後ろの12桁</b>があなたのアカウントコードです。それを貼り付けてください。<br>
-        URLをまるごと貼っても、会員番号（数字）を入れても自動で判別します。
+        <b>= より後ろ</b>があなたのアカウントコードです。URLをまるごと貼っても、会員番号（数字）でも自動判別します。<br>
+        あわせて<b>パスワード</b>を決めてください。次回からはパスワードだけで連携できます（この端末内に暗号化して保存。DAMのログインパスワードではありません）。
       </p>
-      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false">
+      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false" style="margin-bottom:8px">
+      <div class="pwrow">
+        <input type="password" id="dam-pw"  class="dam-in" placeholder="パスワード（4文字以上）" autocomplete="new-password">
+        <input type="password" id="dam-pw2" class="dam-in" placeholder="確認用にもう一度" autocomplete="new-password">
+      </div>
       <div class="panel-actions">
-        <button class="btn primary" id="dam-set">アカウントを登録</button>
+        <button class="btn primary" id="dam-set">登録する</button>
         <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
       </div>
     </div>`;
+  }
 
   const panel = accPanel + `
     <div class="panel">
@@ -946,7 +1191,8 @@ function renderHistory(){
         <div class="thumb" style="${thumbStyle(r.artist || r.title)}">${esc(initial(r.artist || r.title))}</div>
         <div class="mbody">
           <div class="tt">${esc(r.title)}</div>
-          <div class="ts">${esc(r.artist || '—')}　・　${r.count}回${r.best != null ? `　・　最高 ${r.best.toFixed(3)}` : ''}　・　${fmtDate(r.lastAt)}</div>
+          <div class="ts">${esc(r.artist || '—')}　・　${r.count}回${r.best != null ? `　・　最高 ${r.best.toFixed(3)}` : ''}${r.bestRaw != null && r.bestRaw !== r.best ? `（素点 ${r.bestRaw.toFixed(3)}）` : ''}　・　${fmtDate(r.lastAt)}</div>
+          ${r.modes && r.modes.length ? `<div>${r.modes.map(m => `<span class="mchip">${esc(m)}</span>`).join('')}</div>` : ''}
         </div>
         <div class="mtail">${r.inMemo ? '<span class="done">✓</span>' : '<button class="addb" data-act="tomemo">＋</button>'}</div>
       </div>`).join('')}</div>`;
@@ -968,17 +1214,29 @@ function renderHistory(){
             <td>
               <div class="title-cell">
                 <div class="thumb" style="${thumbStyle(r.artist || r.title)}">${esc(initial(r.artist || r.title))}</div>
-                <div class="t-main"><div class="tt">${esc(r.title)}</div><div class="ts">${esc(r.artist || '—')}</div></div>
+                <div class="t-main"><div class="tt">${esc(r.title)}</div><div class="ts">${esc(r.artist || '—')}</div>${r.modes && r.modes.length ? `<div>${r.modes.map(m => `<span class="mchip">${esc(m)}</span>`).join('')}</div>` : ''}</div>
               </div>
             </td>
             <td class="artist-cell">${r.artist ? `<b>${esc(r.artist)}</b>` : '—'}</td>
             <td class="c-key"><span class="keytag">${r.count}回</span></td>
-            <td class="c-key">${r.best != null ? r.best.toFixed(3) : '—'}</td>
+            <td class="c-key">${r.best != null ? r.best.toFixed(3) : '—'}${r.bestRaw != null && r.bestRaw !== r.best ? `<div class="rawline">素点 ${r.bestRaw.toFixed(3)}</div>` : ''}</td>
             <td class="c-date">${fmtDate(r.lastAt)}</td>
             <td class="c-act">${r.inMemo ? '<span class="badge-in">✓ メモ済</span>' : '<button class="rowbtn add" data-act="tomemo">＋ メモへ</button>'}</td>
           </tr>`).join('')}</tbody>
       </table>`;
   }
+
+  const fetchBtn = document.getElementById('dam-fetch');
+  if(fetchBtn) fetchBtn.onclick = () => fetchDamHistory(fetchBtn);
+
+  const proxySave = document.getElementById('dam-proxy-save');
+  if(proxySave) proxySave.onclick = () => {
+    const v = ((document.getElementById('dam-proxy') || {}).value || '').trim().replace(/\/+$/, '');
+    proxyUrl = v;
+    if(v) localStorage.setItem(LS_PROXY, v); else localStorage.removeItem(LS_PROXY);
+    detectBackend();
+    toast(v ? '取得サーバーを保存しました' : '取得サーバー設定を消去しました');
+  };
 
   document.getElementById('imp-run').onclick = runImport;
   document.getElementById('imp-bm').onclick  = () => copyText(BOOKMARKLET, 'ブックマークレットをコピーしました');
@@ -987,27 +1245,26 @@ function renderHistory(){
     if(confirm(`歌唱履歴 ${history.length} 件をすべて削除します。よろしいですか？`)){ history = []; save(); render(); toast('履歴を削除しました'); }
   };
 
-  const setBtn = document.getElementById('dam-set');
-  if(setBtn){
-    const inp = document.getElementById('dam-input');
-    const go = () => {
-      const parsed = parseDamId(inp.value);
-      if(!parsed){
-        document.getElementById('dam-msg').textContent = 'IDを読み取れませんでした。プロフィールURLをそのまま貼り付けてみてください。';
-        return;
-      }
-      dam = parsed; save(); render();
-      toast(parsed.cardNo ? `会員番号 ${parsed.cardNo} を登録しました` : 'アカウントを登録しました');
-    };
-    setBtn.onclick = go;
-    inp.addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+  const regBtn = document.getElementById('dam-set');
+  if(regBtn){
+    regBtn.onclick = damRegister;
+    ['dam-input','dam-pw','dam-pw2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') damRegister(); });
+    });
   }
-  const clearBtn = document.getElementById('dam-clear');
-  if(clearBtn) clearBtn.onclick = () => {
-    if(confirm('設定したDAM★ともアカウントを解除します。取り込み済みの履歴は残ります。')){
-      dam = null; save(); render(); toast('アカウント設定を解除しました');
-    }
-  };
+  const loginBtn = document.getElementById('dam-login');
+  if(loginBtn){
+    loginBtn.onclick = damUnlock;
+    const el = document.getElementById('dam-login-pw');
+    if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') damUnlock(); });
+  }
+  const newpwBtn = document.getElementById('dam-newpw-set');
+  if(newpwBtn) newpwBtn.onclick = damSetPassword;
+  const lockBtn = document.getElementById('dam-lock');
+  if(lockBtn) lockBtn.onclick = damLockAccount;
+  const delBtn = document.getElementById('dam-delete');
+  if(delBtn) delBtn.onclick = damDeleteAccount;
 }
 
 /* ---- その他（モバイル用の設定タブ） ---- */
@@ -1022,7 +1279,7 @@ function renderMore(){
         <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
         <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
         <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
-        <div class="stat"><span>DAM★とも ID</span><b>${dam ? esc(dam.damtomoId) : '未登録'}</b></div>
+        <div class="stat"><span>DAM★とも ID</span><b>${dam ? esc(dam.damtomoId) : (damLocked ? '🔒 ロック中' : '未登録')}</b></div>
       </div>
     </div>
     <div class="panel">
@@ -1365,6 +1622,7 @@ document.addEventListener('keydown', e => {
 });
 
 render();
+detectBackend();  // ローカルサーバー or proxy を検出して自動取得ボタンを有効化
 </script>
 </body>
 </html>
