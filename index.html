@@ -440,9 +440,9 @@ const LS_ONLINE = 'karaokeMemo.online.v1';
 const LS_DAM    = 'karaokeMemo.dam.v1';        // 旧: 平文アカウント（移行用）
 const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 新: パスワードで暗号化したアカウント
 const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
-// ▼ 共有Workerを立てたら、ここに Worker の URL を入れてください（例 'https://xxx.workers.dev'）。
-//   これを設定すると、配布した相手は設定不要でボタン取得できます。
-const DEFAULT_PROXY = '';
+// ▼ 共有Worker(Cloudflare)のURL。設定済みなので配布相手は設定不要でボタン取得できます。
+//   変更する場合はここを差し替えてください（末尾スラッシュ無し）。
+const DEFAULT_PROXY = 'https://karaoke-proxy.kupe0121.workers.dev';
 
 let songs   = load(LS_SONGS, []);
 let history = load(LS_HIST, []);
