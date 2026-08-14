@@ -440,12 +440,15 @@ const LS_ONLINE = 'karaokeMemo.online.v1';
 const LS_DAM    = 'karaokeMemo.dam.v1';        // 旧: 平文アカウント（移行用）
 const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 新: パスワードで暗号化したアカウント
 const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
+// ▼ 共有Workerを立てたら、ここに Worker の URL を入れてください（例 'https://xxx.workers.dev'）。
+//   これを設定すると、配布した相手は設定不要でボタン取得できます。
+const DEFAULT_PROXY = '';
 
 let songs   = load(LS_SONGS, []);
 let history = load(LS_HIST, []);
 let online  = load(LS_ONLINE, false);
 let backendMode = 'none';              // 'local'(server.js) | 'proxy'(Worker等) | 'none'
-let proxyUrl    = load(LS_PROXY, '') || '';   // 取得proxyのURL
+let proxyUrl    = load(LS_PROXY, '') || DEFAULT_PROXY;   // 取得proxyのURL（保存が無ければ既定を使用）
 
 let damEnc    = load(LS_DAMENC, null); // { v, salt, iv, ct } or null（暗号化アカウント）
 let dam       = load(LS_DAM, null);    // 現在リンク中のアカウント { damtomoId, cardNo } or null
@@ -1088,16 +1091,16 @@ function renderHistory(){
       </div>
       <p class="note" style="margin:0 0 12px">${modeLabel}に接続済み。DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>` : ''}
       ${backendMode !== 'local' ? `
-      <div class="lockbox" style="margin:0 0 12px">
-        <div class="side-title" style="padding:0 0 6px">🌐 取得サーバー(proxy)の設定</div>
-        <p class="note" style="margin:0 0 8px">
-          ${proxyUrl ? '設定済みです。変更する場合のみ編集してください。' : 'GitHub Pages 等からボタンで取得するには、あなた専用の proxy(Cloudflare Worker) の URL が必要です（設定は一度だけ）。手順は同梱の <code>README.md</code> を参照。'}
+      <details class="lockbox" ${backendMode === 'none' ? 'open' : ''} style="margin:0 0 12px">
+        <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
+        <p class="note" style="margin:8px 0 8px">
+          ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
         </p>
         <div class="pwrow">
           <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
           <button class="btn" id="dam-proxy-save">保存</button>
         </div>
-      </div>` : ''}`;
+      </details>` : ''}`;
 
   let accPanel;
   if(dam){                                          // ── 連携中 ──
@@ -1232,7 +1235,7 @@ function renderHistory(){
   const proxySave = document.getElementById('dam-proxy-save');
   if(proxySave) proxySave.onclick = () => {
     const v = ((document.getElementById('dam-proxy') || {}).value || '').trim().replace(/\/+$/, '');
-    proxyUrl = v;
+    proxyUrl = v || DEFAULT_PROXY;
     if(v) localStorage.setItem(LS_PROXY, v); else localStorage.removeItem(LS_PROXY);
     detectBackend();
     toast(v ? '取得サーバーを保存しました' : '取得サーバー設定を消去しました');
