@@ -38,8 +38,11 @@ export default {
 
     // 曲の音域を調べる（アカウント不要）
     const songQ = url.searchParams.get("songRange");
-    if (songQ != null) {
+    const rangeUrl = url.searchParams.get("rangeUrl");
+    if (songQ != null || rangeUrl) {
       try {
+        // URLを直接指定されたら検索せずそのページを読む
+        if (rangeUrl) return json(await rangeFromUrl(rangeUrl), cors);
         return json(await lookupSongRange(
           songQ, url.searchParams.get("artist") || "", url.searchParams.get("debug") === "1"), cors);
       } catch (e) {
@@ -141,6 +144,25 @@ const NOTE_RE = "(?:hihi|hi|mid1|mid2|lowlow|low)[A-G](?:#|♯)?";
 function normJa(s) {
   return String(s ?? "").toLowerCase().replace(/[\s　]+/g, "")
     .replace(/[（）()『』「」【】［］\[\]＆&・,，.。'’"”!！?？~〜\-–—]/g, "");
+}
+
+/**
+ * ページURLを直接指定して音域を読む。
+ * 検索で見つからない曲を手動で登録するための逃げ道。
+ * この Worker が誰でも使える中継にならないよう、対象は既知のサイトに限る
+ */
+async function rangeFromUrl(raw) {
+  let u;
+  try { u = new URL(String(raw).trim()); } catch { return { found: false, message: "URLが不正です。" }; }
+  const src = RANGE_SOURCES.find((s) => new URL(s.base).host === u.host);
+  if (!src) {
+    return { found: false, message: `対応していないサイトです（${RANGE_SOURCES.map((s) => new URL(s.base).host).join(" / ")} のみ）。` };
+  }
+  const r = parseRangePage(await getUtf8(u.href));
+  if (!r.high || !r.low) {
+    return { found: false, url: u.href, message: "そのページから音域を読み取れませんでした。" };
+  }
+  return { found: true, url: u.href, source: src.name, ...r };
 }
 
 async function lookupSongRange(title, artist, debug) {

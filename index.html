@@ -259,6 +259,9 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .rb-in input:focus{border-color:var(--accent2)}
 .rb-in button{flex:none;padding:7px 14px;border-radius:8px;font-size:11.5px;font-weight:800;background:rgba(139,92,246,.3);border:1px solid rgba(139,92,246,.5)}
 .rb-msg{display:block;margin-top:6px;font-size:10.5px;color:#ff8fb5}
+.rb-more summary{cursor:pointer;font-size:10.5px;font-weight:800;color:var(--muted);padding:2px 0}
+.rb-more summary:hover{color:var(--text)}
+.rb-more .rb-in{margin-bottom:2px}
 
 /* ---- 取得バー（連携済みのとき常に上に出る） ---- */
 .syncbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
@@ -2404,11 +2407,20 @@ function renderRangeBox(title, artist){
       <div class="panel-actions" style="margin:0 0 8px">
         <button type="button" class="btn" id="qa-rlookup" data-id="${esc(id)}">🔎 音域を調べる</button>
       </div>
-      <div class="rb-in">
-        <input type="text" id="qa-rlow"  placeholder="最低音 例）mid1D#" autocomplete="off" spellcheck="false">
-        <input type="text" id="qa-rhigh" placeholder="最高音 例）hiA" autocomplete="off" spellcheck="false">
-        <button type="button" id="qa-rsave" data-id="${esc(id)}">手入力で登録</button>
-      </div>
+      <details class="rb-more">
+        <summary>見つからないとき</summary>
+        <p class="rb-note" style="margin:8px 0 6px">音域サイトで見つけたページのURLを貼ると、そこから読み取ります。</p>
+        <div class="rb-in">
+          <input type="text" id="qa-rurl" placeholder="https://keytube.net/song/detail/23502" autocomplete="off" spellcheck="false">
+          <button type="button" id="qa-rfromurl" data-id="${esc(id)}">URLから取得</button>
+        </div>
+        <p class="rb-note" style="margin:8px 0 6px">音名が分かっていれば直接入力もできます。</p>
+        <div class="rb-in">
+          <input type="text" id="qa-rlow"  placeholder="最低音 例）mid1D#" autocomplete="off" spellcheck="false">
+          <input type="text" id="qa-rhigh" placeholder="最高音 例）hiA" autocomplete="off" spellcheck="false">
+          <button type="button" id="qa-rsave" data-id="${esc(id)}">手入力で登録</button>
+        </div>
+      </details>
       <span class="rb-msg" id="qa-rmsg"></span>`;
     box.hidden = false;
     return;
@@ -2436,17 +2448,22 @@ function renderRangeBox(title, artist){
   box.hidden = false;
 }
 
-/** 音域研究所から曲の音域を取り寄せる（結果は端末に保存して再問い合わせしない） */
-async function lookupSongRange(id, btn){
+/**
+ * 曲の音域を取り寄せる（結果は端末に保存して再問い合わせしない）
+ * pageUrl を渡すと検索せずそのページから読む
+ */
+async function lookupSongRange(id, btn, pageUrl){
   const title  = document.getElementById('qa-title').value.trim();
   const artist = document.getElementById('qa-artist').value.trim();
   const msg = document.getElementById('qa-rmsg');
-  const url = proxyUrl
-    ? `${proxyUrl}${proxyUrl.includes('?') ? '&' : '?'}songRange=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`
-    : null;
-  if(!url){ msg.textContent = '取得サーバー(proxy)が未設定です。'; return; }
+  if(!proxyUrl){ msg.textContent = '取得サーバー(proxy)が未設定です。'; return; }
+  const sep = proxyUrl.includes('?') ? '&' : '?';
+  const url = pageUrl
+    ? `${proxyUrl}${sep}rangeUrl=${encodeURIComponent(pageUrl)}`
+    : `${proxyUrl}${sep}songRange=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
 
-  btn.disabled = true; btn.textContent = '検索中…';
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = pageUrl ? '取得中…' : '検索中…';
   msg.textContent = '';
   try{
     const res = await fetch(url);
@@ -2464,14 +2481,22 @@ async function lookupSongRange(id, btn){
   }catch(err){
     msg.textContent = isNetworkError(err) ? '取得サーバーに接続できませんでした。' : '取得に失敗しました: ' + err.message;
   }finally{
-    if(btn.isConnected){ btn.disabled = false; btn.textContent = '🔎 音域を調べる'; }
+    if(btn.isConnected){ btn.disabled = false; btn.textContent = label; }
   }
 }
 
-/* 曲の音域（取り寄せ / 手入力） */
+/* 曲の音域（検索 / URL指定 / 手入力） */
 document.getElementById('qa-range').addEventListener('click', e => {
   const look = e.target.closest('#qa-rlookup');
   if(look){ lookupSongRange(look.dataset.id, look); return; }
+
+  const fromUrl = e.target.closest('#qa-rfromurl');
+  if(fromUrl){
+    const v = document.getElementById('qa-rurl').value.trim();
+    if(!v){ document.getElementById('qa-rmsg').textContent = 'URLを入力してください。'; return; }
+    lookupSongRange(fromUrl.dataset.id, fromUrl, v);
+    return;
+  }
 
   const btn = e.target.closest('#qa-rsave'); if(!btn) return;
   const msg = document.getElementById('qa-rmsg');
