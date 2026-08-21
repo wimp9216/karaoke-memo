@@ -35,6 +35,17 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    // 曲の音域を調べる（アカウント不要）
+    const songQ = url.searchParams.get("songRange");
+    if (songQ != null) {
+      try {
+        return json(await lookupSongRange(songQ, url.searchParams.get("artist") || ""), cors);
+      } catch (e) {
+        return json({ found: false, message: "音域の取得に失敗しました: " + e.message }, cors);
+      }
+    }
+
     const damtomoId = (url.searchParams.get("damtomoId") || "").match(/^[A-Za-z0-9_+/-]+={0,2}$/)?.[0] || "";
     if (!damtomoId) return json({ error: "damtomoId が不正です。" }, cors);
     const debug = url.searchParams.get("debug") === "1";
@@ -92,6 +103,94 @@ export default {
     }
   },
 };
+
+/* =========================================================
+   曲の音域を「音域研究所」から引く
+   ・WordPress なので ?s= で検索できる
+   ・楽曲ページに「地声最低音　mid1F（F3）」の形で載っている
+   ・違う曲のデータを掴むと害が大きいので、曲名が一致しない限り返さない
+   ========================================================= */
+const RANGE_SITE = "https://onikikenkyujo.com";
+const NOTE_RE = "(?:hihi|hi|mid1|mid2|lowlow|low)[A-G](?:#|♯)?";
+
+function normJa(s) {
+  return String(s ?? "").toLowerCase().replace(/[\s　]+/g, "")
+    .replace(/[（）()＆&・,，.。'’"”!！?？~〜\-–—]/g, "");
+}
+
+async function lookupSongRange(title, artist) {
+  title = String(title || "").trim();
+  if (!title) return { found: false, message: "曲名がありません。" };
+
+  let hits = pickResults(await getUtf8(`${RANGE_SITE}/?s=${encodeURIComponent([title, artist].filter(Boolean).join(" "))}`));
+  let best = bestMatch(hits, title, artist);
+  if (!best && artist) {
+    // アーティスト名の表記違いで空振りすることがあるので、曲名だけで引き直す
+    hits = pickResults(await getUtf8(`${RANGE_SITE}/?s=${encodeURIComponent(title)}`));
+    best = bestMatch(hits, title, artist);
+  }
+  if (!best) return { found: false, message: "音域研究所に該当する曲が見つかりませんでした。" };
+
+  const r = parseRangePage(await getUtf8(best.url));
+  if (!r.high || !r.low) {
+    return { found: false, url: best.url, message: "ページから音域を読み取れませんでした。" };
+  }
+  return { found: true, pageTitle: best.text, url: best.url, source: "音域研究所", ...r };
+}
+
+/** 検索結果ページから記事リンクを拾う */
+function pickResults(html) {
+  const out = [], seen = new Set();
+  const re = new RegExp(`<a[^>]+href="(${RANGE_SITE}/\\d{4}/\\d{2}/\\d{2}/[^"#]+)"[^>]*>([\\s\\S]*?)</a>`, "g");
+  for (const m of html.matchAll(re)) {
+    const url = m[1];
+    if (seen.has(url)) continue;
+    const text = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    seen.add(url);
+    out.push({ url, text: decodeEntities(text) });
+  }
+  return out;
+}
+
+/** 曲名が一致しているものだけ採用する（別の曲を掴まないため） */
+function bestMatch(hits, title, artist) {
+  const t = normJa(title), a = normJa(artist);
+  let best = null, bestScore = 0;
+  for (const h of hits) {
+    const x = normJa(h.text);
+    if (!t || !x.includes(t)) continue;         // 曲名一致は必須
+    const score = 2 + (a && x.includes(a) ? 1 : 0);
+    if (score > bestScore) { bestScore = score; best = h; }
+  }
+  return best;
+}
+
+function parseRangePage(html) {
+  const text = decodeEntities(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ");
+  const pick = (label) => {
+    const m = text.match(new RegExp(label + "[\\s　]*(" + NOTE_RE + ")"));
+    return m ? m[1].replace("♯", "#") : null;
+  };
+  return {
+    low: pick("地声最低音"),
+    high: pick("地声最高音"),
+    falsetto: pick("裏声最高音"),      // キー計算には使わないが参考として返す
+  };
+}
+
+function decodeEntities(s) {
+  return s.replace(/&(amp|lt|gt|quot|#0?39|apos|nbsp|#8217|#8211);/g, (_, e) => ({
+    amp: "&", lt: "<", gt: ">", quot: '"', "#039": "'", "#39": "'", apos: "'",
+    nbsp: " ", "#8217": "’", "#8211": "–",
+  }[e] || _));
+}
+
+async function getUtf8(url) {
+  const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow" });
+  if (!res.ok) throw new Error(`${new URL(url).hostname} が ${res.status} を返しました`);
+  return new TextDecoder("utf-8").decode(await res.arrayBuffer());
+}
 
 function countByMode(records) {
   const out = {};
