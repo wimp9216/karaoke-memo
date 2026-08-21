@@ -61,6 +61,25 @@ export default {
       }
 
       const { records, errors } = await fetchAllScoringPages(cdmCardNo, cdmToken || "", damtomoId);
+
+      // ?fields=1 で、採点種別ごとにどんな内訳項目が取れるかだけを返す
+      if (url.searchParams.get("fields") === "1") {
+        const byMode = {};
+        for (const r of records) {
+          const e = (byMode[r.mode] ||= { count: 0, keys: new Set(), sample: null });
+          e.count++;
+          Object.keys(r.detail || {}).forEach((k) => e.keys.add(k));
+          if (!e.sample) e.sample = r.detail;
+        }
+        return json({
+          fields: true,
+          total: records.length,
+          modes: Object.fromEntries(
+            Object.entries(byMode).map(([m, e]) => [m, { count: e.count, keys: [...e.keys].sort(), sample: e.sample }])
+          ),
+        }, cors);
+      }
+
       return json({
         records,
         // 空振りしたときは、DAM側が何と言って断ったのかをそのまま見せる
@@ -249,9 +268,20 @@ function parseScoringPage(xml, type, damtomoId) {
       sungAt: formatDate(attr("scoringDateTime")),
       mode: type.name,
       damtomoId,
+      // 採点の内訳（音程・表現力・音域など）。項目は機種で違うのでそのまま渡す
+      detail: allAttrs(block),
     });
   }
   return records;
+}
+
+/** ブロック内の属性を name→value でそのまま取り出す */
+function allAttrs(block) {
+  const out = {};
+  for (const m of block.matchAll(/\s([A-Za-z_][\w.:-]*)="([^"]*)"/g)) {
+    if (m[2] !== "") out[m[1]] = m[2];
+  }
+  return out;
 }
 
 function formatDate(dt) {

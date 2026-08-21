@@ -137,6 +137,37 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .mchip{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(139,92,246,.16);border:1px solid rgba(139,92,246,.35);color:#c4b5fd;margin:2px 4px 0 0;white-space:nowrap}
 .rawline{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
 .dam-fetch-msg{color:var(--muted);font-size:12px;flex:1;min-width:0}
+/* ---- 採点の詳細ダイアログ ---- */
+.hd-head{display:flex;align-items:center;gap:12px;padding-bottom:4px}
+.hd-head .thumb{width:48px;height:48px;border-radius:9px;font-size:18px}
+.hd-artist{font-size:13.5px;color:var(--muted);font-weight:600}
+.hd-sum{font-size:12px;color:var(--muted);margin-top:3px}
+.take{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:rgba(0,0,0,.22)}
+.take-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.take-date{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.take-score{margin-left:auto;font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
+.take-sub{font-size:11.5px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:8px;margin-top:11px}
+.dcell{background:rgba(255,255,255,.05);border-radius:8px;padding:7px 9px;min-width:0}
+.dcell span{display:block;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dcell b{font-size:14px;font-variant-numeric:tabular-nums;word-break:break-all}
+[data-hkey]{cursor:pointer}
+
+/* ---- 声域分析 ---- */
+.voice{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
+.vcell{flex:1 1 116px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.vcell span{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+.vcell b{font-size:19px;font-variant-numeric:tabular-nums}
+.vcell.wide{flex:1 1 100%}
+.keyhint{display:flex;align-items:center;gap:9px;margin-top:7px;font-size:11.5px;color:var(--muted)}
+.keyhint button{flex:none;padding:4px 11px;border-radius:999px;border:1px solid rgba(61,220,151,.4);color:var(--ok);font-size:11px;font-weight:800}
+.keyhint button:hover{background:rgba(61,220,151,.13)}
+.keyhint .why{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.modebar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.modebar .chip{display:inline-flex;align-items:center;gap:7px}
+.modebar .cnt{font-size:10.5px;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.1);color:inherit}
+.modebar .chip.on .cnt{background:rgba(0,0,0,.16)}
 .warnbox{margin:0 0 12px;padding:12px 14px;border-radius:10px;font-size:12.5px;line-height:1.85;color:#ffc9d8;background:rgba(255,61,129,.09);border:1px solid rgba(255,61,129,.32)}
 .warnbox b{color:#fff}
 
@@ -197,9 +228,9 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;color:inherit}
 .dam-in{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);outline:none;font-size:14px}
 .dam-in:focus{border-color:var(--accent)}
-.pwrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px}
-.pwrow .dam-in{flex:1;min-width:150px}
-.lockbox{margin:6px 0 4px;padding:14px;border:1px dashed rgba(255,255,255,.16);border-radius:10px;background:rgba(139,92,246,.05)}
+.inrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.inrow .dam-in{flex:1;min-width:150px}
+.setbox{margin:6px 0 4px;padding:14px;border:1px dashed rgba(255,255,255,.16);border-radius:10px;background:rgba(139,92,246,.05)}
 .damid{display:flex;flex-wrap:wrap;gap:10px 28px;margin-bottom:14px}
 .damid .dl{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);margin-bottom:3px}
 .damid b{font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:.02em;word-break:break-all}
@@ -324,8 +355,8 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   .qa .disc2{display:none}
   .qa .fields{flex-direction:column;gap:13px;flex:none}
   .qa .group{flex:none !important;width:100%}
-  .qa .group.keyrow{flex-direction:row;align-items:center;justify-content:space-between}
-  .qa .group.keyrow .lbl{margin:0}
+  .qa .group.keywrap .keyrow{display:flex;flex-direction:row;align-items:center;justify-content:space-between}
+  .qa .group.keywrap .keyrow .lbl{margin:0}
   .qa .btn.primary{width:100%;padding:14px;font-size:15px;border-radius:12px}
   .suglist{max-height:44dvh}
 
@@ -406,12 +437,18 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
           <span class="lbl">アーティスト</span>
           <div class="sugwrap"><input type="text" id="qa-artist" placeholder="例）YOASOBI" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
         </div>
-        <div class="group keyrow">
-          <span class="lbl">キー</span>
-          <div class="stepper">
-            <button id="qa-minus" aria-label="キーを下げる">−</button>
-            <div class="val" id="qa-keyval">±0</div>
-            <button id="qa-plus" aria-label="キーを上げる">＋</button>
+        <div class="group keywrap">
+          <div class="keyrow">
+            <span class="lbl">キー</span>
+            <div class="stepper">
+              <button id="qa-minus" aria-label="キーを下げる">−</button>
+              <div class="val" id="qa-keyval">±0</div>
+              <button id="qa-plus" aria-label="キーを上げる">＋</button>
+            </div>
+          </div>
+          <div class="keyhint" id="qa-keyhint" hidden>
+            <span class="why" id="qa-keywhy"></span>
+            <button type="button" id="qa-keyapply"></button>
           </div>
         </div>
         <div class="group" style="flex:1.2 1 140px">
@@ -455,6 +492,16 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   </div>
 </dialog>
 
+<!-- ============ HISTORY DETAIL DIALOG ============ -->
+<dialog id="hdlg">
+  <div class="dlg-h" id="h-title">採点の詳細</div>
+  <div class="dlg-b" id="h-body"></div>
+  <div class="dlg-f">
+    <button class="btn primary left" id="h-tomemo">＋ マイメモへ追加</button>
+    <button class="btn ghost" id="h-close">閉じる</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast">
   <span id="toast-msg"></span>
   <button class="toast-act" id="toast-act" hidden></button>
@@ -467,9 +514,10 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 const LS_SONGS  = 'karaokeMemo.songs.v1';
 const LS_HIST   = 'karaokeMemo.history.v1';
 const LS_ONLINE = 'karaokeMemo.online.v1';
-const LS_DAM    = 'karaokeMemo.dam.v1';        // 旧: 平文アカウント（移行用）
-const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 新: パスワードで暗号化したアカウント
+const LS_DAM    = 'karaokeMemo.dam.v1';        // DAM★ともアカウント { damtomoId, cardNo }
+const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 廃止: 旧パスワード保護（起動時に掃除する）
 const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
+const LS_HMODE  = 'karaokeMemo.histMode.v1';   // 歌唱履歴で選んでいる採点種別
 // ▼ 共有Worker(Cloudflare)のURL。設定済みなので配布相手は設定不要でボタン取得できます。
 //   変更する場合はここを差し替えてください（末尾スラッシュ無し）。
 const DEFAULT_PROXY = 'https://karaoke-memo.kupe0121.workers.dev';
@@ -485,10 +533,13 @@ let proxyUrl    = load(LS_PROXY, '');                    // 取得proxyのURL（
 if(RETIRED_PROXIES.includes(proxyUrl)){ localStorage.removeItem(LS_PROXY); proxyUrl = ''; }
 proxyUrl = proxyUrl || DEFAULT_PROXY;
 
-let damEnc    = load(LS_DAMENC, null); // { v, salt, iv, ct } or null（暗号化アカウント）
-let dam       = load(LS_DAM, null);    // 現在リンク中のアカウント { damtomoId, cardNo } or null
-let damLocked = false;                 // 暗号化アカウントがあり、まだ解錠していない
-if(damEnc){ dam = null; damLocked = true; }   // パスワード保護あり → 起動時はロック状態
+let dam = load(LS_DAM, null);          // 連携中のアカウント { damtomoId, cardNo } or null
+// パスワード保護は廃止。復号できない残骸を持ち続けても意味がないので捨てる
+if(localStorage.getItem(LS_DAMENC)) localStorage.removeItem(LS_DAMENC);
+
+/* 採点種別。DAM側の mode 文字列をそのまま使う */
+const MODE_ORDER = ['精密採点AiHeart', '精密採点Ai', '精密採点DX-G'];
+let histMode = load(LS_HMODE, 'all');  // 'all' または MODE_ORDER のいずれか
 
 let view    = 'memo';
 let query   = '';
@@ -509,7 +560,7 @@ function save(){
   localStorage.setItem(LS_SONGS, JSON.stringify(songs));
   localStorage.setItem(LS_HIST, JSON.stringify(history));
   localStorage.setItem(LS_ONLINE, JSON.stringify(online));
-  // アカウントは平文保存しない（暗号化ブロブは登録/解除時に個別保存）
+  if(dam) localStorage.setItem(LS_DAM, JSON.stringify(dam));
 }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -755,9 +806,22 @@ function parseDamId(input){
 /* =========================================================
    歌唱履歴の集計
    ========================================================= */
-function aggHistory(){
+/** 採点種別で絞った履歴レコード（histMode が 'all' なら全件） */
+function histRecords(mode = histMode){
+  return mode === 'all' ? history : history.filter(r => r.mode === mode);
+}
+
+/** 実際に取り込まれている採点種別を、既定の並び順で返す */
+function histModes(){
+  const seen = new Set(history.map(r => r.mode).filter(Boolean));
+  const ordered = MODE_ORDER.filter(m => seen.has(m));
+  for(const m of seen) if(!ordered.includes(m)) ordered.push(m);   // 未知の種別も落とさない
+  return ordered;
+}
+
+function aggHistory(mode = histMode){
   const map = new Map();
-  for(const r of history){
+  for(const r of histRecords(mode)){
     const k = norm(r.title) + ' ' + norm(r.artist);
     let e = map.get(k);
     if(!e){ e = { key:k, title:r.title, artist:r.artist, count:0, lastAt:null, best:null, bestRaw:null, modeSet:new Set() }; map.set(k, e); }
@@ -775,6 +839,117 @@ function aggHistory(){
     e.modes = [...e.modeSet]; delete e.modeSet;
   }
   return [...map.values()];
+}
+
+/* =========================================================
+   音名（DAM表記）とMIDIノート番号の相互変換
+   lowlowC / lowC / mid1C / mid2C / hiC / hihiC … mid2C が中央ド(C4)
+   ========================================================= */
+const NOTE_IDX = { C:0, 'C#':1, D:2, 'D#':3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, 'A#':10, B:11 };
+const OCTAVES  = { lowlow:1, low:2, mid1:3, mid2:4, hi:5, hihi:6 };
+const OCT_NAME = ['lowlow','low','mid1','mid2','hi','hihi'];
+const NOTE_NAME = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+/** "mid2G#" のような表記を MIDI番号に。読めなければ null */
+function parseNote(s){
+  const m = String(s ?? '').trim().match(/^(hihi|hi|mid1|mid2|lowlow|low)\s*([A-G])\s*(#|♯)?$/i);
+  if(!m) return null;
+  const oct = OCTAVES[m[1].toLowerCase()];
+  const idx = NOTE_IDX[m[2].toUpperCase() + (m[3] ? '#' : '')];
+  if(oct == null || idx == null) return null;
+  return (oct + 1) * 12 + idx;
+}
+function noteName(midi){
+  if(midi == null) return '—';
+  const oct = Math.floor(midi / 12) - 1;
+  const name = OCT_NAME[oct - 1];
+  return (name || 'oct' + oct) + NOTE_NAME[midi % 12];
+}
+
+/** 採点データの中から音域らしき値を拾う。項目名は機種で違うので広めに探す */
+function noteFromDetail(detail, kind){
+  if(!detail) return null;
+  const want = kind === 'high' ? /(highest|high|max).*(note|tone|pitch)|最高音/i
+                               : /(lowest|low|min).*(note|tone|pitch)|最低音/i;
+  for(const [k, v] of Object.entries(detail)){
+    if(!want.test(k)) continue;
+    const n = parseNote(v);
+    if(n != null) return n;
+  }
+  return null;
+}
+
+/* =========================================================
+   声域の分析 → 新規メモのキー設定を助ける
+   ・DAMが音域を返していれば、実測の声域を出す
+   ・返していなくても、マイメモのキー設定の傾向からは助言できる
+   ========================================================= */
+function median(nums){
+  if(!nums.length) return null;
+  const a = [...nums].sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : Math.round((a[m-1] + a[m]) / 2);
+}
+
+function analyzeVoice(){
+  const highs = [], lows = [];
+  for(const r of history){
+    const h = noteFromDetail(r.detail, 'high'); if(h != null) highs.push(h);
+    const l = noteFromDetail(r.detail, 'low');  if(l != null) lows.push(l);
+  }
+
+  // マイメモのキー設定は、その人が実際に歌いやすいと判断した結果
+  const keys = songs.map(s => Number(s.key) || 0);
+
+  // キーを下げたときと上げたときで、点数に差が出ているか
+  const scored = [];
+  for(const s of songs){
+    const rec = history.filter(r => norm(r.title) === norm(s.title) && r.score != null);
+    if(rec.length) scored.push({ key:Number(s.key) || 0, best:Math.max(...rec.map(r => r.score)) });
+  }
+  const down = scored.filter(x => x.key < 0), up = scored.filter(x => x.key > 0), flat = scored.filter(x => x.key === 0);
+  const avg = a => a.length ? a.reduce((t, x) => t + x.best, 0) / a.length : null;
+
+  return {
+    hasRange: highs.length > 0 || lows.length > 0,
+    samples: Math.max(highs.length, lows.length),
+    highest: highs.length ? Math.max(...highs) : null,
+    lowest:  lows.length  ? Math.min(...lows)  : null,
+    highTypical: median(highs),
+    lowTypical:  median(lows),
+    keyCount: keys.length,
+    keyMedian: median(keys),
+    keyMin: keys.length ? Math.min(...keys) : null,
+    keyMax: keys.length ? Math.max(...keys) : null,
+    scoreByKey: { down:avg(down), flat:avg(flat), up:avg(up), n:scored.length },
+  };
+}
+
+/**
+ * 新しくメモを作るときの推奨キー。
+ * 同じ曲 → 同じアーティスト → 全体、の順に根拠の強いものを使う
+ */
+function suggestKeyFor(title, artist){
+  const t = norm(title), a = norm(artist);
+
+  const same = songs.find(s => norm(s.title) === t && (!a || !s.artist || norm(s.artist) === a));
+  if(same) return { key:Number(same.key) || 0, reason:'この曲は既にメモ済みです', strong:true };
+
+  if(a){
+    const ks = songs.filter(s => norm(s.artist) === a).map(s => Number(s.key) || 0);
+    if(ks.length >= 2){
+      const k = median(ks);
+      return { key:k, reason:`${artist} の${ks.length}曲は中央値 ${fmtKey(k)}`, strong:true };
+    }
+    if(ks.length === 1) return { key:ks[0], reason:`${artist} の曲では ${fmtKey(ks[0])} にしています`, strong:false };
+  }
+
+  const all = songs.map(s => Number(s.key) || 0);
+  if(all.length >= 3){
+    const k = median(all);
+    return { key:k, reason:`あなたの設定キーの中央値は ${fmtKey(k)}`, strong:false };
+  }
+  return { key:0, reason:'', strong:false };
 }
 
 /* 履歴レコードの重複判定キー（採点IDがあれば優先） */
@@ -852,8 +1027,8 @@ async function fetchDamHistory(btn){
       return;
     }
 
-    const seen = new Set(history.map(histSig));
-    let added = 0;
+    const bySig = new Map(history.map(r => [histSig(r), r]));
+    let added = 0, enriched = 0;
     for(const r of recs){
       const title = String(r.title || '').trim();
       if(!title) continue;
@@ -867,13 +1042,22 @@ async function fetchDamHistory(btn){
         rawScore: r.rawScore != null ? r.rawScore : null,
         bonus: r.bonus != null ? r.bonus : null,
         mode: r.mode || null,
+        detail: r.detail || null,
       };
       const sig = histSig(rec);
-      if(seen.has(sig)) continue;
-      seen.add(sig); history.push(rec); added++;
+      const old = bySig.get(sig);
+      if(old){
+        // 既にある歌唱でも、内訳が後から取れたなら足しておく
+        if(!old.detail && rec.detail){ old.detail = rec.detail; enriched++; }
+        continue;
+      }
+      bySig.set(sig, rec); history.push(rec); added++;
     }
     save(); render();
-    toast(added ? `${added} 件の精密採点履歴を取り込みました` : `取得済みでした（${recs.length}件を確認）`);
+    const parts = [];
+    if(added)    parts.push(`${added} 件を取り込みました`);
+    if(enriched) parts.push(`${enriched} 件に採点の内訳を追加しました`);
+    toast(parts.length ? parts.join(' / ') : `取得済みでした（${recs.length}件を確認）`);
   }catch(err){
     if(isNetworkError(err)){
       // 「Failed to fetch」はブラウザが理由を隠すので、考えられる原因を出しておく
@@ -890,98 +1074,19 @@ async function fetchDamHistory(btn){
   }
 }
 
-/* =========================================================
-   アカウントのパスワード保護（Web Crypto / AES-GCM + PBKDF2）
-   ・登録時にパスワードで暗号化して端末に保存
-   ・次回はパスワードを入力するだけで解錠 → 連携
-   ※ これは端末内でアカウント情報を守るためのローカルな合言葉で、
-     DAM★とものログインパスワードではありません
-   ========================================================= */
-function cryptoOK(){ return !!(window.crypto && crypto.subtle); }
-function bufToB64(buf){ let s = ''; const a = new Uint8Array(buf); for(let i=0;i<a.length;i++) s += String.fromCharCode(a[i]); return btoa(s); }
-function b64ToBuf(b64){ const s = atob(b64); const a = new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i] = s.charCodeAt(i); return a.buffer; }
-
-async function damDeriveKey(password, salt){
-  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' },
-    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
-}
-async function damEncryptAccount(account, password){
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const key  = await damDeriveKey(password, salt);
-  const ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(account)));
-  return { v:1, salt:bufToB64(salt), iv:bufToB64(iv), ct:bufToB64(ct) };
-}
-async function damDecryptAccount(blob, password){
-  const salt = new Uint8Array(b64ToBuf(blob.salt));
-  const iv   = new Uint8Array(b64ToBuf(blob.iv));
-  const key  = await damDeriveKey(password, salt);
-  const pt   = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, b64ToBuf(blob.ct));
-  return JSON.parse(new TextDecoder().decode(pt));
-}
-
-// パスワードで暗号化して保存し、そのまま連携状態にする
-async function saveEncryptedAccount(account, password){
-  damEnc = await damEncryptAccount(account, password);
-  localStorage.setItem(LS_DAMENC, JSON.stringify(damEnc));
-  localStorage.removeItem(LS_DAM);   // 平文は残さない
-  dam = account; damLocked = false;
-}
-
-// 新規登録: DAM★ともID＋パスワードをまとめて登録
-async function damRegister(){
+/* DAM★ともIDを登録する（この端末のlocalStorageにそのまま保存） */
+function damRegister(){
   const idEl = document.getElementById('dam-input');
   const setMsg = t => { const m = document.getElementById('dam-msg'); if(m) m.textContent = t; };
   const parsed = parseDamId(idEl ? idEl.value : '');
   if(!parsed){ setMsg('IDを読み取れませんでした。プロフィールURLをそのまま貼り付けてみてください。'); return; }
-  const pw  = (document.getElementById('dam-pw')  || {}).value || '';
-  const pw2 = (document.getElementById('dam-pw2') || {}).value || '';
-  if(pw.length < 4){ setMsg('パスワードは4文字以上にしてください。'); return; }
-  if(pw !== pw2){ setMsg('確認用パスワードが一致しません。'); return; }
-  if(!cryptoOK()){ setMsg('この環境では暗号化を利用できません。http://localhost で開いてください。'); return; }
-  try{
-    await saveEncryptedAccount(parsed, pw);
-    render(); toast('アカウントを登録しました');
-  }catch(err){ setMsg('登録に失敗しました: ' + err.message); }
+  dam = parsed; save(); render();
+  toast(parsed.cardNo ? `会員番号 ${parsed.cardNo} を登録しました` : 'アカウントを登録しました');
 }
-
-// 次回以降: パスワードで解錠して連携
-async function damUnlock(){
-  const setMsg = t => { const m = document.getElementById('dam-login-msg'); if(m) m.textContent = t; };
-  if(!damEnc) return;
-  const pw = (document.getElementById('dam-login-pw') || {}).value || '';
-  if(!pw){ setMsg('パスワードを入力してください。'); return; }
-  if(!cryptoOK()){ setMsg('この環境では復号できません。http://localhost で開いてください。'); return; }
-  try{
-    const account = await damDecryptAccount(damEnc, pw);
-    dam = account; damLocked = false;
-    render(); toast('ログインしました');
-  }catch{ setMsg('パスワードが違います。'); }
-}
-
-// 旧バージョンの平文アカウントに後からパスワードを設定
-async function damSetPassword(){
-  const setMsg = t => { const m = document.getElementById('dam-newpw-msg'); if(m) m.textContent = t; };
-  if(!dam) return;
-  const pw  = (document.getElementById('dam-newpw')  || {}).value || '';
-  const pw2 = (document.getElementById('dam-newpw2') || {}).value || '';
-  if(pw.length < 4){ setMsg('パスワードは4文字以上にしてください。'); return; }
-  if(pw !== pw2){ setMsg('確認用パスワードが一致しません。'); return; }
-  if(!cryptoOK()){ setMsg('この環境では暗号化を利用できません。http://localhost で開いてください。'); return; }
-  try{
-    await saveEncryptedAccount(dam, pw);
-    render(); toast('パスワードを設定しました');
-  }catch(err){ setMsg('設定に失敗しました: ' + err.message); }
-}
-
-function damLockAccount(){ dam = null; damLocked = !!damEnc; render(); toast('ロックしました'); }
 
 function damDeleteAccount(){
-  if(!confirm('保存したアカウントとパスワードを削除します。よろしいですか？（取り込み済みの履歴は残ります）')) return;
-  damEnc = null; dam = null; damLocked = false;
-  localStorage.removeItem(LS_DAMENC);
+  if(!confirm('保存したアカウントを削除します。よろしいですか？（取り込み済みの履歴は残ります）')) return;
+  dam = null;
   localStorage.removeItem(LS_DAM);
   render(); toast('アカウントを削除しました');
 }
@@ -1179,14 +1284,75 @@ function renderArtist(){
     : `<div class="empty"><div class="big">◎</div><h3>アーティストがまだありません</h3><p>メモを追加するとここに並びます。</p></div>`;
 }
 
+/* ---- 声域とキーの傾向 ---- */
+function voicePanel(){
+  if(!history.length && !songs.length) return '';
+  const v = analyzeVoice();
+  const sk = v.scoreByKey;
+
+  const rangeCells = v.hasRange ? `
+      <div class="vcell"><span>最高音</span><b>${noteName(v.highest)}</b></div>
+      <div class="vcell"><span>最低音</span><b>${noteName(v.lowest)}</b></div>
+      <div class="vcell"><span>音域</span><b>${v.highest != null && v.lowest != null ? (v.highest - v.lowest) + '半音' : '—'}</b></div>
+      <div class="vcell"><span>よく出す最高音</span><b>${noteName(v.highTypical)}</b></div>` : '';
+
+  const keyCells = v.keyCount ? `
+      <div class="vcell"><span>設定キーの中央値</span><b>${fmtKey(v.keyMedian)}</b></div>
+      <div class="vcell"><span>キーの range</span><b>${fmtKey(v.keyMin)} 〜 ${fmtKey(v.keyMax)}</b></div>` : '';
+
+  // 「キーを下げた曲のほうが点が高い」なら、それは有用な助言になる
+  let advice = '';
+  if(sk.n >= 3 && sk.down != null && (sk.flat != null || sk.up != null)){
+    const other = sk.flat != null ? sk.flat : sk.up;
+    const diff = sk.down - other;
+    if(Math.abs(diff) >= 0.3){
+      advice = diff > 0
+        ? `キーを下げた曲のほうが平均 ${diff.toFixed(2)}点 高く出ています。迷ったら下げ方向が無難です。`
+        : `キーを下げた曲のほうが平均 ${(-diff).toFixed(2)}点 低く出ています。下げすぎかもしれません。`;
+    }
+  }
+
+  const note = v.hasRange
+    ? `${v.samples} 回分の採点データから算出しています。`
+    : `取り込んだ採点データに音域の項目が含まれていないため、実測の声域は出せません。
+       代わりに、あなたがマイメモで実際に選んだキー設定${v.keyCount ? `（${v.keyCount}曲）` : ''}から傾向を出しています。`;
+
+  if(!rangeCells && !keyCells) return '';
+
+  return `
+    <div class="panel">
+      <h3>あなたの声域とキーの傾向</h3>
+      <div class="voice">${rangeCells}${keyCells}</div>
+      ${advice ? `<div class="vcell wide" style="margin-bottom:10px"><span>傾向</span><b style="font-size:13px;font-weight:700">${esc(advice)}</b></div>` : ''}
+      <p class="note" style="margin:0">${note}<br>
+        新しく曲を追加するときは、入力欄の下に推奨キーが出ます。</p>
+    </div>`;
+}
+
 /* ---- 歌唱履歴 ---- */
 function renderHistory(){
   document.getElementById('hero-t').textContent = isMobile ? '歌唱履歴' : '歌唱履歴（DAM★とも）';
-  const agg = filterList(aggHistory());
-  document.getElementById('hero-s').textContent = `${history.length} 件の記録 / ${agg.length} 曲　—　気になった曲はワンタップでメモへ`;
+
+  const modes = histModes();
+  if(histMode !== 'all' && !modes.includes(histMode)) histMode = 'all';   // 消えた種別を選んだままにしない
+
+  const recs = histRecords();
+  const agg  = filterList(aggHistory());
+  document.getElementById('hero-s').textContent =
+    `${recs.length} 件の記録 / ${agg.length} 曲` +
+    (histMode === 'all' ? '' : `（${histMode}）`) +
+    `　—　曲を選ぶと採点の詳細が見られます`;
 
   const rows = sorted(agg, sortH);
   const c = document.getElementById('content');
+
+  // 採点種別の切り替え。2種類以上あるときだけ出す
+  const modeBar = modes.length > 1 ? `
+    <div class="modebar">
+      <button class="chip ${histMode === 'all' ? 'on' : ''}" data-hmode="all">すべて<span class="cnt">${history.length}</span></button>
+      ${modes.map(m => `
+      <button class="chip ${histMode === m ? 'on' : ''}" data-hmode="${esc(m)}">${esc(m)}<span class="cnt">${history.filter(r => r.mode === m).length}</span></button>`).join('')}
+    </div>` : '';
 
   const canFetch = backendMode === 'local' || backendMode === 'proxy';
   const modeLabel = backendMode === 'local' ? 'ローカルサーバー' : (backendMode === 'proxy' ? '取得サーバー(proxy)' : '');
@@ -1205,12 +1371,12 @@ function renderHistory(){
       </p>` : `
       <p class="note" style="margin:0 0 12px">${modeLabel}${proxyAlive === true ? 'に接続済み' : 'を確認中'}。DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>`}` : ''}
       ${backendMode !== 'local' ? `
-      <details class="lockbox" ${backendMode === 'none' || proxyDown ? 'open' : ''} style="margin:0 0 12px">
+      <details class="setbox" ${backendMode === 'none' || proxyDown ? 'open' : ''} style="margin:0 0 12px">
         <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
         <p class="note" style="margin:8px 0 8px">
           ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
         </p>
-        <div class="pwrow">
+        <div class="inrow">
           <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
           <button class="btn" id="dam-proxy-save">保存</button>
         </div>
@@ -1226,34 +1392,8 @@ function renderHistory(){
         ${dam.cardNo ? `<div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>` : ''}
       </div>
       ${fetchBlock}
-      ${!damEnc ? `
-      <div class="lockbox">
-        <div class="side-title" style="padding:0 0 6px">🔒 パスワードを設定して保護</div>
-        <p class="note" style="margin:0 0 10px">設定すると、次回からはパスワードを入力するだけで連携できます。</p>
-        <div class="pwrow">
-          <input type="password" id="dam-newpw"  class="dam-in" placeholder="パスワード（4文字以上）" autocomplete="new-password">
-          <input type="password" id="dam-newpw2" class="dam-in" placeholder="確認用にもう一度" autocomplete="new-password">
-        </div>
-        <div class="panel-actions">
-          <button class="btn primary" id="dam-newpw-set">パスワードを設定</button>
-          <span style="color:var(--muted);font-size:12px" id="dam-newpw-msg"></span>
-        </div>
-      </div>` : ''}
       <div class="panel-actions" style="margin-top:14px">
-        ${damEnc ? `<button class="btn ghost" id="dam-lock">🔒 ロック</button>` : ''}
         <button class="btn ghost" id="dam-delete">アカウントを削除</button>
-      </div>
-    </div>`;
-  } else if(damLocked){                             // ── ロック中（パスワード待ち）──
-    accPanel = `
-    <div class="panel">
-      <h3>DAM★とも アカウント連携</h3>
-      <p class="note" style="margin:0 0 12px">保存済みのアカウントがあります。パスワードを入力してログインしてください。</p>
-      <input type="password" id="dam-login-pw" class="dam-in" placeholder="パスワード" autocomplete="current-password">
-      <div class="panel-actions">
-        <button class="btn primary" id="dam-login">ログイン</button>
-        <button class="btn ghost" id="dam-delete">別のアカウントにする（削除）</button>
-        <span style="color:var(--muted);font-size:12px" id="dam-login-msg"></span>
       </div>
     </div>`;
   } else {                                          // ── 未登録 ──
@@ -1262,14 +1402,9 @@ function renderHistory(){
       <h3>DAM★とも アカウントを登録</h3>
       <p class="note">
         DAM★とものプロフィールURL <code>…Profile.do?damtomoId=<b>MTIzNDU2Nzg5</b></code> の
-        <b>= より後ろ</b>があなたのアカウントコードです。URLをまるごと貼っても、会員番号（数字）でも自動判別します。<br>
-        あわせて<b>パスワード</b>を決めてください。次回からはパスワードだけで連携できます（この端末内に暗号化して保存。DAMのログインパスワードではありません）。
+        <b>= より後ろ</b>があなたのアカウントコードです。URLをまるごと貼っても、会員番号（数字）でも自動判別します。
       </p>
-      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false" style="margin-bottom:8px">
-      <div class="pwrow">
-        <input type="password" id="dam-pw"  class="dam-in" placeholder="パスワード（4文字以上）" autocomplete="new-password">
-        <input type="password" id="dam-pw2" class="dam-in" placeholder="確認用にもう一度" autocomplete="new-password">
-      </div>
+      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false">
       <div class="panel-actions">
         <button class="btn primary" id="dam-set">登録する</button>
         <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
@@ -1278,10 +1413,10 @@ function renderHistory(){
   }
 
   // 全消去はアカウントの連携状態に関わらず届くようにしておく
-  const panel = accPanel + (history.length ? `
+  const panel = accPanel + voicePanel() + (history.length ? `
     <div class="panel-actions" style="margin:-8px 0 18px">
       <button class="btn ghost" id="hist-clear">取り込んだ履歴を全消去</button>
-    </div>` : '');
+    </div>` : '') + modeBar;
 
   if(!rows.length){
     c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>アカウントを登録して「⟳ 精密採点履歴を自動取得」を押してください。</p></div>`;
@@ -1350,21 +1485,9 @@ function renderHistory(){
   const regBtn = document.getElementById('dam-set');
   if(regBtn){
     regBtn.onclick = damRegister;
-    ['dam-input','dam-pw','dam-pw2'].forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') damRegister(); });
-    });
+    const el = document.getElementById('dam-input');
+    if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') damRegister(); });
   }
-  const loginBtn = document.getElementById('dam-login');
-  if(loginBtn){
-    loginBtn.onclick = damUnlock;
-    const el = document.getElementById('dam-login-pw');
-    if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') damUnlock(); });
-  }
-  const newpwBtn = document.getElementById('dam-newpw-set');
-  if(newpwBtn) newpwBtn.onclick = damSetPassword;
-  const lockBtn = document.getElementById('dam-lock');
-  if(lockBtn) lockBtn.onclick = damLockAccount;
   const delBtn = document.getElementById('dam-delete');
   if(delBtn) delBtn.onclick = damDeleteAccount;
 }
@@ -1381,7 +1504,7 @@ function renderMore(){
         <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
         <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
         <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
-        <div class="stat"><span>DAM★とも ID</span><b>${dam ? esc(dam.damtomoId) : (damLocked ? '🔒 ロック中' : '未登録')}</b></div>
+        <div class="stat"><span>DAM★とも ID</span><b>${dam ? esc(dam.damtomoId) : '未登録'}</b></div>
       </div>
     </div>
     <div class="panel">
@@ -1473,6 +1596,76 @@ function openEdit(id){
   document.getElementById('d-memo').value   = s.memo;
   document.getElementById('d-keyval').textContent = fmtKey(dKey);
   document.getElementById('dlg').showModal();
+}
+
+/* =========================================================
+   採点の詳細（履歴の曲を選んだとき）
+   項目名は採点機種で違うので、既知のものだけ和名を当て、
+   知らない項目もそのまま並べて取りこぼさない
+   ========================================================= */
+const DETAIL_LABELS = {
+  totalScore:'総合点', pitch:'音程', intonation:'音程', stability:'安定性',
+  expressive:'表現力', expression:'表現力', vocal:'ボーカル', rhythm:'リズム',
+  vibratoLongtone:'ビブラート＆ロングトーン', vibrato:'ビブラート', longtone:'ロングトーン',
+  vibratoType:'ビブラートの種類', vibratoCount:'ビブラート回数', vibratoTotalSec:'ビブラート合計秒',
+  shakuri:'しゃくり', kobushi:'こぶし', fall:'フォール',
+  highestNote:'最高音', lowestNote:'最低音', highestTone:'最高音', lowestTone:'最低音',
+  hearingPoint:'ハートポイント', aiSensitivityBonus:'Ai感性ボーナス',
+  songName:'曲名', artistName:'アーティスト', contentsName:'曲名',
+  scoringDateTime:'歌唱日時',
+};
+/* 一覧に出す必要がない、内部管理用の項目 */
+const DETAIL_SKIP = /^(songName|artistName|contentsName|scoringDateTime|requestNo|sequenceNo|contentsId|.*Id|damtomoId)$/;
+
+function detailRows(detail){
+  if(!detail) return [];
+  return Object.entries(detail)
+    .filter(([k]) => !DETAIL_SKIP.test(k))
+    .map(([k, v]) => [DETAIL_LABELS[k] || k, v]);
+}
+
+let hDetailKey = null;
+
+function openHistDetail(key){
+  const agg = aggHistory().find(r => r.key === key);
+  if(!agg) return;
+  hDetailKey = key;
+
+  // その曲の歌唱を新しい順に。種別で絞っている場合はその種別だけ
+  const takes = histRecords()
+    .filter(r => norm(r.title) + ' ' + norm(r.artist) === key)
+    .sort((a, b) => (b.date || 0) - (a.date || 0));
+
+  document.getElementById('h-title').textContent = agg.title;
+
+  const head = `
+    <div class="hd-head">
+      <div class="thumb" style="${thumbStyle(agg.artist || agg.title)}">${esc(initial(agg.artist || agg.title))}</div>
+      <div>
+        <div class="hd-artist">${esc(agg.artist || 'アーティスト不明')}</div>
+        <div class="hd-sum">${takes.length}回歌唱${agg.best != null ? `　・　最高 ${agg.best.toFixed(3)}点` : ''}</div>
+      </div>
+    </div>`;
+
+  const body = takes.map(t => {
+    const rows = detailRows(t.detail);
+    return `
+    <div class="take">
+      <div class="take-h">
+        <span class="take-date">${fmtDate(t.date)}</span>
+        <span class="mchip">${esc(t.mode || '—')}</span>
+        <span class="take-score">${t.score != null ? t.score.toFixed(3) : '—'}</span>
+      </div>
+      ${t.bonus != null ? `<div class="take-sub">素点 ${t.rawScore != null ? t.rawScore.toFixed(3) : '—'}　＋ボーナス ${t.bonus.toFixed(3)}</div>` : ''}
+      ${rows.length ? `<div class="dgrid">${rows.map(([k, v]) =>
+        `<div class="dcell"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`
+        : `<div class="take-sub">この歌唱には内訳データがありません。</div>`}
+    </div>`;
+  }).join('');
+
+  document.getElementById('h-body').innerHTML = head + (body || '<p class="note">歌唱データがありません。</p>');
+  document.getElementById('h-tomemo').style.display = agg.inMemo ? 'none' : '';
+  document.getElementById('hdlg').showModal();
 }
 
 /* =========================================================
@@ -1581,10 +1774,22 @@ document.getElementById('content').addEventListener('click', e => {
   const card = e.target.closest('.acard');
   if(card){ selectArtist(card.dataset.artist); return; }
 
+  const modeChip = e.target.closest('[data-hmode]');
+  if(modeChip){
+    histMode = modeChip.dataset.hmode;
+    localStorage.setItem(LS_HMODE, JSON.stringify(histMode));
+    render(); return;
+  }
+
   const hrow = e.target.closest('[data-hkey]');
-  if(hrow && e.target.closest('[data-act="tomemo"]')){
-    const rec = aggHistory().find(r => r.key === hrow.dataset.hkey); if(!rec) return;
-    addSong(rec.title, rec.artist, 0, `DAM★とも履歴より（${rec.count}回歌唱${rec.best != null ? ` / 最高 ${rec.best.toFixed(3)}点` : ''}）`);
+  if(hrow){
+    if(e.target.closest('[data-act="tomemo"]')){
+      const rec = aggHistory().find(r => r.key === hrow.dataset.hkey); if(!rec) return;
+      addSong(rec.title, rec.artist, suggestKeyFor(rec.title, rec.artist).key,
+        `DAM★とも履歴より（${rec.count}回歌唱${rec.best != null ? ` / 最高 ${rec.best.toFixed(3)}点` : ''}）`);
+      return;
+    }
+    openHistDetail(hrow.dataset.hkey);      // 行を選んだら採点の詳細へ
     return;
   }
 
@@ -1608,16 +1813,47 @@ document.getElementById('content').addEventListener('click', e => {
 
 /* クイック追加 */
 function setQaKey(v){ qaKey = Math.max(-12, Math.min(12, v)); document.getElementById('qa-keyval').textContent = fmtKey(qaKey); }
-document.getElementById('qa-minus').onclick = () => setQaKey(qaKey - 1);
-document.getElementById('qa-plus').onclick  = () => setQaKey(qaKey + 1);
+document.getElementById('qa-minus').onclick = () => { setQaKey(qaKey - 1); keyTouched = true; updateKeyHint(); };
+document.getElementById('qa-plus').onclick  = () => { setQaKey(qaKey + 1); keyTouched = true; updateKeyHint(); };
 document.getElementById('qa-save').onclick  = quickSave;
 function quickSave(){
   const t = document.getElementById('qa-title'), a = document.getElementById('qa-artist'), m = document.getElementById('qa-memo');
   if(addSong(t.value, a.value, qaKey, m.value)){
     t.value = ''; a.value = ''; m.value = ''; setQaKey(0);
+    keyTouched = false; updateKeyHint();
     if(isMobile) closeSheet(); else t.focus();
   }
 }
+
+/* ---- キー設定のフォロー ----
+   曲名・アーティストが入るたびに推奨キーを出す。
+   自分でキーを触った後は、勝手に上書きせず提案だけ残す */
+let keyTouched = false;
+
+function updateKeyHint(){
+  const hint = document.getElementById('qa-keyhint');
+  const title  = document.getElementById('qa-title').value.trim();
+  const artist = document.getElementById('qa-artist').value.trim();
+  if(!title && !artist){ hint.hidden = true; return; }
+
+  const sug = suggestKeyFor(title, artist);
+  if(!sug.reason || sug.key === qaKey){ hint.hidden = true; return; }
+
+  document.getElementById('qa-keywhy').textContent = sug.reason;
+  const btn = document.getElementById('qa-keyapply');
+  btn.textContent = `${fmtKey(sug.key)} にする`;
+  btn.onclick = () => { setQaKey(sug.key); keyTouched = true; updateKeyHint(); };
+  hint.hidden = false;
+
+  // まだキーに触れていないうちは、根拠が強いものだけ自動で入れる
+  if(!keyTouched && sug.strong){ setQaKey(sug.key); hint.hidden = true; }
+}
+
+['qa-title','qa-artist'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input',  updateKeyHint);
+  el.addEventListener('change', updateKeyHint);   // 候補から選んだとき
+});
 
 /* サジェストを先に登録 → Enter は候補選択が優先される */
 attachSuggest(document.getElementById('qa-title'),  'title', document.getElementById('qa-artist'));
@@ -1628,6 +1864,16 @@ attachSuggest(document.getElementById('d-artist'),  'artist');
 ['qa-title','qa-artist','qa-memo'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => { if(e.key === 'Enter') quickSave(); });
 });
+
+/* 採点詳細ダイアログ */
+document.getElementById('h-close').onclick = () => document.getElementById('hdlg').close();
+document.getElementById('h-tomemo').onclick = () => {
+  const rec = aggHistory().find(r => r.key === hDetailKey); if(!rec) return;
+  const sug = suggestKeyFor(rec.title, rec.artist);
+  addSong(rec.title, rec.artist, sug.key,
+    `DAM★とも履歴より（${rec.count}回歌唱${rec.best != null ? ` / 最高 ${rec.best.toFixed(3)}点` : ''}）`);
+  document.getElementById('hdlg').close();
+};
 
 /* 編集ダイアログ */
 function setDKey(v){ dKey = Math.max(-12, Math.min(12, v)); document.getElementById('d-keyval').textContent = fmtKey(dKey); }
