@@ -105,43 +105,51 @@ export default {
 };
 
 /* =========================================================
-   曲の音域を「音域研究所」から引く
-   ・WordPress なので ?s= で検索できる
-   ・楽曲ページに「地声最低音　mid1F（F3）」の形で載っている
-   ・違う曲のデータを掴むと害が大きいので、曲名が一致しない限り返さない
+   曲の音域を音域系サイトから引く
+   ・いずれも WordPress で ?s= 検索が使え、
+     記事に「地声最低音　mid1F（F3）」の形で載っている
+   ・1サイトでは収録漏れが多いので、見つかるまで順に当たる
+   ・違う曲のデータを掴むと害が大きいので、曲名が一致しない候補は採らない
    ========================================================= */
-const RANGE_SITE = "https://onikikenkyujo.com";
+const RANGE_SOURCES = [
+  { name: "音域研究所",     base: "https://onikikenkyujo.com", path: "\\d{4}/\\d{2}/\\d{2}/[^\"#]+" },
+  { name: "J-POP 音域の沼", base: "https://vocal-range.com",   path: "archives/[^\"#]+\\.html" },
+];
 const NOTE_RE = "(?:hihi|hi|mid1|mid2|lowlow|low)[A-G](?:#|♯)?";
 
 function normJa(s) {
   return String(s ?? "").toLowerCase().replace(/[\s　]+/g, "")
-    .replace(/[（）()＆&・,，.。'’"”!！?？~〜\-–—]/g, "");
+    .replace(/[（）()『』「」【】［］\[\]＆&・,，.。'’"”!！?？~〜\-–—]/g, "");
 }
 
 async function lookupSongRange(title, artist) {
   title = String(title || "").trim();
   if (!title) return { found: false, message: "曲名がありません。" };
 
-  let hits = pickResults(await getUtf8(`${RANGE_SITE}/?s=${encodeURIComponent([title, artist].filter(Boolean).join(" "))}`));
-  let best = bestMatch(hits, title, artist);
-  if (!best && artist) {
-    // アーティスト名の表記違いで空振りすることがあるので、曲名だけで引き直す
-    hits = pickResults(await getUtf8(`${RANGE_SITE}/?s=${encodeURIComponent(title)}`));
-    best = bestMatch(hits, title, artist);
-  }
-  if (!best) return { found: false, message: "音域研究所に該当する曲が見つかりませんでした。" };
+  const tried = [];
+  for (const src of RANGE_SOURCES) {
+    tried.push(src.name);
+    // まず曲名＋アーティスト。表記違いで空振りしたら曲名だけで引き直す
+    const queries = artist ? [`${title} ${artist}`, title] : [title];
+    for (const q of queries) {
+      let hits;
+      try { hits = pickResults(await getUtf8(`${src.base}/?s=${encodeURIComponent(q)}`), src); }
+      catch { continue; }                       // 1サイト落ちても他を試す
+      const best = bestMatch(hits, title, artist);
+      if (!best) continue;
 
-  const r = parseRangePage(await getUtf8(best.url));
-  if (!r.high || !r.low) {
-    return { found: false, url: best.url, message: "ページから音域を読み取れませんでした。" };
+      const r = parseRangePage(await getUtf8(best.url));
+      if (!r.high || !r.low) continue;          // 読めなければ次の候補へ
+      return { found: true, pageTitle: best.text, url: best.url, source: src.name, ...r };
+    }
   }
-  return { found: true, pageTitle: best.text, url: best.url, source: "音域研究所", ...r };
+  return { found: false, message: `該当する曲が見つかりませんでした（${tried.join(" / ")}を確認）。` };
 }
 
 /** 検索結果ページから記事リンクを拾う */
-function pickResults(html) {
+function pickResults(html, src) {
   const out = [], seen = new Set();
-  const re = new RegExp(`<a[^>]+href="(${RANGE_SITE}/\\d{4}/\\d{2}/\\d{2}/[^"#]+)"[^>]*>([\\s\\S]*?)</a>`, "g");
+  const re = new RegExp(`<a[^>]+href="(${src.base}/${src.path})"[^>]*>([\\s\\S]*?)</a>`, "g");
   for (const m of html.matchAll(re)) {
     const url = m[1];
     if (seen.has(url)) continue;
