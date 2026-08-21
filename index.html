@@ -221,6 +221,14 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .keyhint button:hover{background:rgba(61,220,151,.13)}
 .keyhint .why{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* ---- 取得バー（連携済みのとき常に上に出る） ---- */
+.syncbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.syncbar .btn.big{padding:12px 22px;font-size:14px}
+.syncinfo{display:flex;flex-direction:column;gap:3px;min-width:0}
+.syncinfo b{font-size:13px;font-variant-numeric:tabular-nums}
+.syncinfo span{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.syncbar .dam-fetch-msg{flex:1 1 100%;margin:0}
+
 .modebar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .modebar .chip{display:inline-flex;align-items:center;gap:7px}
 .modebar .cnt{font-size:10.5px;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.1);color:inherit}
@@ -582,6 +590,8 @@ const LS_DAM    = 'karaokeMemo.dam.v1';        // DAM★ともアカウント { 
 const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 廃止: 旧パスワード保護（起動時に掃除する）
 const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
 const LS_HMODE  = 'karaokeMemo.histMode.v1';   // 歌唱履歴で選んでいる採点種別
+const LS_FETCH  = 'karaokeMemo.lastFetch.v1';  // 最後に自動取得した時刻
+const FETCH_LABEL = '⟳ 精密採点履歴を取得';
 // ▼ 共有Worker(Cloudflare)のURL。設定済みなので配布相手は設定不要でボタン取得できます。
 //   変更する場合はここを差し替えてください（末尾スラッシュ無し）。
 const DEFAULT_PROXY = 'https://karaoke-memo.kupe0121.workers.dev';
@@ -598,6 +608,7 @@ if(RETIRED_PROXIES.includes(proxyUrl)){ localStorage.removeItem(LS_PROXY); proxy
 proxyUrl = proxyUrl || DEFAULT_PROXY;
 
 let dam = load(LS_DAM, null);          // 連携中のアカウント { damtomoId, cardNo } or null
+let lastFetch = load(LS_FETCH, null);  // 最後に自動取得した時刻(ms)
 // パスワード保護は廃止。復号できない残骸を持ち続けても意味がないので捨てる
 if(localStorage.getItem(LS_DAMENC)) localStorage.removeItem(LS_DAMENC);
 
@@ -620,17 +631,42 @@ let isMobile = MQ.matches;
 
 /* ---------------- utils ---------------- */
 function load(k, def){ try{ const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; }catch{ return def; } }
+/**
+ * 容量超過で1つ失敗しても、他まで巻き添えにしない。
+ * 履歴は採点の内訳を含めて数百KBになるため、軽くて大事なものから先に書く。
+ */
+let storageFull = false;
 function save(){
-  localStorage.setItem(LS_SONGS, JSON.stringify(songs));
-  localStorage.setItem(LS_HIST, JSON.stringify(history));
-  localStorage.setItem(LS_ONLINE, JSON.stringify(online));
-  if(dam) localStorage.setItem(LS_DAM, JSON.stringify(dam));
+  const items = [
+    [LS_DAM,    dam],           // アカウントは最優先（消えると再登録が必要になる）
+    [LS_ONLINE, online],
+    [LS_SONGS,  songs],
+    [LS_HIST,   history],       // いちばん重い。溢れるならここ
+  ];
+  let failed = null;
+  for(const [k, v] of items){
+    if(v == null) continue;
+    try{ localStorage.setItem(k, JSON.stringify(v)); }
+    catch(err){ failed = k; }
+  }
+  const wasFull = storageFull;
+  storageFull = failed !== null;
+  if(storageFull && !wasFull){
+    toast(failed === LS_HIST
+      ? '保存容量が足りず、歌唱履歴を保存できませんでした'
+      : '保存容量が足りません');
+  }
 }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtKey(k){ const n = Number(k) || 0; return n === 0 ? '±0' : (n > 0 ? '+'+n : String(n)); }
 function keyCls(k){ const n = Number(k) || 0; return n > 0 ? 'up' : (n < 0 ? 'down' : ''); }
 function fmtDate(ms){ if(!ms) return '—'; const d = new Date(ms); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDateTime(ms){
+  if(!ms) return '—';
+  const d = new Date(ms);
+  return `${fmtDate(ms)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
 function norm(s){ return String(s ?? '').trim().toLowerCase().replace(/[\s　]+/g,''); }
 function hue(str){ let h = 0; for(const c of String(str)) h = (h*31 + c.codePointAt(0)) % 360; return h; }
 function thumbStyle(seed){ const h = hue(seed); return `background:linear-gradient(135deg,hsl(${h} 68% 46%),hsl(${(h+52)%360} 66% 34%))`; }
@@ -1094,7 +1130,7 @@ async function fetchDamHistory(btn){
     const recs = Array.isArray(data.records) ? data.records : [];
     if(!recs.length){
       setMsg(data.message || '履歴が見つかりませんでした。'); toast('新しい履歴はありませんでした');
-      if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
+      if(btn){ btn.disabled = false; btn.textContent = FETCH_LABEL; }
       return;
     }
 
@@ -1124,6 +1160,8 @@ async function fetchDamHistory(btn){
       }
       bySig.set(sig, rec); history.push(rec); added++;
     }
+    lastFetch = Date.now();
+    try{ localStorage.setItem(LS_FETCH, JSON.stringify(lastFetch)); }catch{}
     save(); render();
     const parts = [];
     if(added)    parts.push(`${added} 件を取り込みました`);
@@ -1137,7 +1175,7 @@ async function fetchDamHistory(btn){
       `${recs.length} 件を取得${byMode ? `（${byMode}）` : ''}。` +
       (failed.length ? `　取得できなかった種別があります → ${failed.join(' / ')}` : '')
     );
-    if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
+    if(btn){ btn.disabled = false; btn.textContent = FETCH_LABEL; }
   }catch(err){
     if(isNetworkError(err)){
       // 「Failed to fetch」はブラウザが理由を隠すので、考えられる原因を出しておく
@@ -1150,7 +1188,7 @@ async function fetchDamHistory(btn){
       setMsg('取得に失敗しました: ' + err.message);
       toast('取得に失敗しました');
     }
-    if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
+    if(btn){ btn.disabled = false; btn.textContent = FETCH_LABEL; }
   }
 }
 
@@ -1399,7 +1437,7 @@ function voicePanel(){
 
   const note = v.hasRange
     ? `${v.samples} 回分の採点データ（DAMが記録した実測の声域）から算出しています。`
-    : `取り込んだ採点データに声域の項目がまだありません。「⟳ 精密採点履歴を自動取得」を押すと追加されます。
+    : `取り込んだ採点データに声域の項目がまだありません。「⟳ 精密採点履歴を取得」を押すと追加されます。
        いまはマイメモのキー設定${v.keyCount ? `（${v.keyCount}曲）` : ''}から傾向を出しています。`;
 
   if(!rangeCells.trim() && !keyCells.trim()) return '';
@@ -1441,47 +1479,46 @@ function renderHistory(){
     </div>` : '';
 
   const canFetch = backendMode === 'local' || backendMode === 'proxy';
-  const modeLabel = backendMode === 'local' ? 'ローカルサーバー' : (backendMode === 'proxy' ? '取得サーバー(proxy)' : '');
   const proxyDown = backendMode === 'proxy' && proxyAlive === false;
-  const fetchBlock = `
-      ${canFetch ? `
-      <div class="panel-actions" style="margin:0 0 8px">
-        <button class="btn primary" id="dam-fetch">⟳ 精密採点履歴を自動取得</button>
-        <span class="dam-fetch-msg" id="dam-fetch-msg"></span>
-      </div>
-      ${proxyDown ? `
-      <p class="warnbox">
-        ⚠️ 取得サーバー(proxy)に接続できません（<code>${esc(proxyUrl)}</code>）。<br>
-        Cloudflare Worker が<b>まだデプロイされていない</b>か、URLが違う可能性があります。
-        <code>proxy-worker.js</code> を Worker に貼って Deploy し、発行URLを下の欄に保存してください（手順は <code>README.md</code> の「2-A」）。
-      </p>` : `
-      <p class="note" style="margin:0 0 12px">${modeLabel}${proxyAlive === true ? 'に接続済み' : 'を確認中'}。DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>`}` : ''}
-      ${backendMode !== 'local' ? `
-      <details class="setbox" ${backendMode === 'none' || proxyDown ? 'open' : ''} style="margin:0 0 12px">
-        <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
-        <p class="note" style="margin:8px 0 8px">
-          ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
-        </p>
-        <div class="inrow">
-          <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
-          <button class="btn" id="dam-proxy-save">保存</button>
-        </div>
-      </details>` : ''}`;
 
   let accPanel;
-  if(dam){                                          // ── 連携中 ──
+  if(dam){
+    // ── 連携中 ──
+    // 一度登録すれば連携は続くので、普段は取得ボタンだけを出し、
+    // アカウントの詳細は畳んでおく
     accPanel = `
-    <div class="panel">
-      <h3>DAM★とも アカウント</h3>
-      <div class="damid">
+    <div class="syncbar">
+      ${canFetch ? `<button class="btn primary big" id="dam-fetch">${FETCH_LABEL}</button>`
+                 : `<span class="dam-fetch-msg">取得サーバーを確認中…</span>`}
+      <div class="syncinfo">
+        <b>${history.length ? `${history.length} 件を保存中` : 'まだ取得していません'}</b>
+        <span>${lastFetch ? `最終取得 ${fmtDateTime(lastFetch)}` : 'ボタンを押すと取り込みます'}</span>
+      </div>
+      <span class="dam-fetch-msg" id="dam-fetch-msg"></span>
+    </div>
+    ${proxyDown ? `
+    <p class="warnbox">
+      ⚠️ 取得サーバー(proxy)に接続できません（<code>${esc(proxyUrl)}</code>）。<br>
+      Cloudflare Worker が<b>まだデプロイされていない</b>か、URLが違う可能性があります。
+    </p>` : ''}
+    <details class="setbox" style="margin:0 0 16px">
+      <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">
+        ⚙ アカウントと取得サーバーの設定（連携中：${esc(dam.damtomoId)}）
+      </summary>
+      <div class="damid" style="margin-top:12px">
         <div><span class="dl">DAM★とも ID</span><b>${esc(dam.damtomoId)}</b></div>
         ${dam.cardNo ? `<div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>` : ''}
       </div>
-      ${fetchBlock}
-      <div class="panel-actions" style="margin-top:14px">
+      <p class="note" style="margin:0 0 10px">DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>
+      ${backendMode !== 'local' ? `
+      <div class="inrow">
+        <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
+        <button class="btn" id="dam-proxy-save">保存</button>
+      </div>` : ''}
+      <div class="panel-actions" style="margin-top:12px">
         <button class="btn ghost" id="dam-delete">アカウントを削除</button>
       </div>
-    </div>`;
+    </details>`;
   } else {                                          // ── 未登録 ──
     accPanel = `
     <div class="panel">
@@ -1495,6 +1532,18 @@ function renderHistory(){
         <button class="btn primary" id="dam-set">登録する</button>
         <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
       </div>
+      <p class="note" style="margin:12px 0 0">一度登録すれば、次回からは自動で連携された状態になります。</p>
+      ${backendMode !== 'local' ? `
+      <details class="setbox" ${backendMode === 'none' || proxyDown ? 'open' : ''} style="margin:12px 0 0">
+        <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
+        <p class="note" style="margin:8px 0">
+          ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
+        </p>
+        <div class="inrow">
+          <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
+          <button class="btn" id="dam-proxy-save">保存</button>
+        </div>
+      </details>` : ''}
     </div>`;
   }
 
@@ -1505,7 +1554,7 @@ function renderHistory(){
     </div>` : '') + modeBar;
 
   if(!rows.length){
-    c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>アカウントを登録して「⟳ 精密採点履歴を自動取得」を押してください。</p></div>`;
+    c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>アカウントを登録して「⟳ 精密採点履歴を取得」を押してください。</p></div>`;
   } else if(isMobile){
     c.innerHTML = panel + `<div class="mlist">${rows.map(r => `
       <div class="mrow" data-hkey="${esc(r.key)}">
@@ -1839,7 +1888,7 @@ function takeHtml(t){
     </div>`;
 
   if(!d) return `<div class="take">${header}<div class="take-sub">
-    この歌唱には内訳データがありません。「⟳ 精密採点履歴を自動取得」を押すと、
+    この歌唱には内訳データがありません。「⟳ 精密採点履歴を取得」を押すと、
     いま取得できる種別のぶんは追加されます。それでも出ない場合は、
     DAM★とも側がこの採点の詳細を返していません。</div></div>`;
 
