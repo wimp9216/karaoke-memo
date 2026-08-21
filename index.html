@@ -151,6 +151,28 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .mtail .addb{width:38px;height:38px;border-radius:50%;font-size:20px;color:var(--ok);border:1px solid rgba(61,220,151,.35);display:grid;place-items:center}
 .mtail .done{font-size:16px;color:var(--ok);width:38px;text-align:center}
 
+/* ---- 左スワイプで削除（モバイルのマイメモ） ---- */
+.swipe{overflow:hidden;border-bottom:1px solid rgba(255,255,255,.05)}
+.swipe .mrow{flex:1 0 100%;min-width:0;border-bottom:none}
+.swipe-inner{display:flex;align-items:stretch;width:100%;transform:translateX(0);transition:transform .22s cubic-bezier(.2,.85,.25,1)}
+.swipe.dragging .swipe-inner{transition:none}
+.swipe.open .swipe-inner{transform:translateX(-92px)}
+.swipe-del{
+  flex:0 0 92px;display:grid;place-items:center;gap:2px;align-content:center;
+  background:linear-gradient(135deg,#ff3d81,#c2185b);color:#fff;font-size:12px;font-weight:800;letter-spacing:.04em;
+}
+.swipe-del .di{font-size:17px;line-height:1}
+.swipe-del:active{filter:brightness(.9)}
+
+/* ---- アーティスト絞り込み中のヘッダ ---- */
+.filterbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.filterbar .cur{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:800;min-width:0}
+.filterbar .cur .thumb{width:28px;height:28px;border-radius:50%;font-size:12px}
+.filterbar .cur span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.backchip{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:800;color:var(--muted);white-space:nowrap;transition:.15s}
+.backchip:hover{color:var(--text);border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.05)}
+.backchip.main{color:var(--text);border-color:rgba(255,255,255,.22)}
+
 /* ================= artist cards ================= */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:16px}
 .acard{background:var(--card);border-radius:10px;padding:14px;transition:.18s;cursor:pointer;border:1px solid transparent}
@@ -458,6 +480,7 @@ if(damEnc){ dam = null; damLocked = true; }   // パスワード保護あり →
 let view    = 'memo';
 let query   = '';
 let favOnly = false;
+let artistFilter = null;               // アーティストを選んで絞り込み中のとき、その名前
 let sortS   = { key:'createdAt', dir:'desc' };
 let sortH   = { key:'lastAt',    dir:'desc' };
 let qaKey   = 0;
@@ -925,10 +948,36 @@ function damDeleteAccount(){
 function filterList(list){
   const q = norm(query);
   return list.filter(x => {
-    if(favOnly && view === 'memo' && !x.fav) return false;
+    if(view === 'memo'){
+      if(favOnly && !x.fav) return false;
+      if(artistFilter && norm(x.artist || '(未設定)') !== norm(artistFilter)) return false;
+    }
     if(!q) return true;
     return norm(x.title).includes(q) || norm(x.artist).includes(q) || norm(x.memo).includes(q);
   });
+}
+
+/* =========================================================
+   アーティスト絞り込み
+   ========================================================= */
+/** 絞り込み中のアーティストを、追加フォームのアーティスト欄へ入れておく */
+function fillArtistField(){
+  if(!artistFilter || artistFilter === '(未設定)') return;
+  const a = document.getElementById('qa-artist');
+  if(a && !a.value.trim()) a.value = artistFilter;
+}
+function selectArtist(name){
+  artistFilter = name;
+  query = ''; document.getElementById('q').value = '';
+  view = 'memo';
+  fillArtistField();
+  render(); document.getElementById('main').scrollTop = 0;
+}
+function clearArtistFilter(){
+  const a = document.getElementById('qa-artist');
+  // 自動で入れた名前が手つかずのまま残っていれば、一緒に消す
+  if(a && artistFilter && norm(a.value) === norm(artistFilter)) a.value = '';
+  artistFilter = null;
 }
 
 /* =========================================================
@@ -973,13 +1022,25 @@ function renderSortbar(){
 function renderMemo(){
   document.getElementById('hero-t').textContent = 'マイメモ';
   const list = filterList(songs);
-  document.getElementById('hero-s').textContent =
-    `${songs.length} 曲を保存中${list.length !== songs.length ? `（表示中 ${list.length} 曲）` : ''}` +
-    (isMobile ? '　—　右下の＋から追加' : '　—　下のバーからすぐ追加できます');
+  document.getElementById('hero-s').textContent = artistFilter
+    ? `「${artistFilter}」の ${list.length} 曲を表示中　—　${isMobile ? '左スワイプで削除' : '一覧へは上のボタンで戻れます'}`
+    : `${songs.length} 曲を保存中${list.length !== songs.length ? `（表示中 ${list.length} 曲）` : ''}` +
+      (isMobile ? '　—　右下の＋から追加 / 左スワイプで削除' : '　—　下のバーからすぐ追加できます');
+
+  // アーティスト絞り込み中は、一覧へ戻る導線を出す
+  const fbar = artistFilter ? `
+    <div class="filterbar">
+      <button class="backchip main" data-act="artist-back">◀　アーティスト一覧</button>
+      <span class="cur">
+        <span class="thumb" style="${thumbStyle(artistFilter)}">${esc(initial(artistFilter))}</span>
+        <span>${esc(artistFilter)}</span>
+      </span>
+      <button class="backchip" data-act="artist-clear">絞り込みを解除</button>
+    </div>` : '';
 
   const c = document.getElementById('content');
   if(!songs.length){
-    c.innerHTML = `
+    c.innerHTML = fbar + `
       <div class="empty">
         <div class="big">🎵</div>
         <h3>まだメモがありません</h3>
@@ -990,27 +1051,32 @@ function renderMemo(){
     document.getElementById('btn-sample').onclick = addSamples;
     return;
   }
-  if(!list.length){ c.innerHTML = `<div class="empty"><div class="big">🔍</div><h3>該当する曲がありません</h3><p>検索条件を変えてみてください。</p></div>`; return; }
+  if(!list.length){ c.innerHTML = fbar + `<div class="empty"><div class="big">🔍</div><h3>該当する曲がありません</h3><p>検索条件を変えてみてください。</p></div>`; return; }
 
   const rows = sorted(list, sortS);
 
   if(isMobile){
-    c.innerHTML = `<div class="mlist">${rows.map(s => `
-      <div class="mrow" data-id="${s.id}">
-        <div class="thumb" style="${thumbStyle(s.artist || s.title)}">${esc(initial(s.artist || s.title))}</div>
-        <div class="mbody" data-act="edit">
-          <div class="tt">${esc(s.title)}</div>
-          <div class="ts">${esc(s.artist || 'アーティスト未設定')}${s.memo ? '　・　' + esc(s.memo) : ''}</div>
-        </div>
-        <div class="mtail">
-          <span class="keytag ${keyCls(s.key)}">${fmtKey(s.key)}</span>
-          <button class="fav ${s.fav ? 'on' : ''}" data-act="fav">${s.fav ? '★' : '☆'}</button>
+    c.innerHTML = fbar + `<div class="mlist">${rows.map(s => `
+      <div class="swipe" data-id="${s.id}">
+        <div class="swipe-inner">
+          <div class="mrow">
+            <div class="thumb" style="${thumbStyle(s.artist || s.title)}">${esc(initial(s.artist || s.title))}</div>
+            <div class="mbody" data-act="edit">
+              <div class="tt">${esc(s.title)}</div>
+              <div class="ts">${esc(s.artist || 'アーティスト未設定')}${s.memo ? '　・　' + esc(s.memo) : ''}</div>
+            </div>
+            <div class="mtail">
+              <span class="keytag ${keyCls(s.key)}">${fmtKey(s.key)}</span>
+              <button class="fav ${s.fav ? 'on' : ''}" data-act="fav">${s.fav ? '★' : '☆'}</button>
+            </div>
+          </div>
+          <button class="swipe-del" data-act="del" aria-label="${esc(s.title)}を削除"><span class="di">🗑</span>削除</button>
         </div>
       </div>`).join('')}</div>`;
     return;
   }
 
-  c.innerHTML = `
+  c.innerHTML = fbar + `
     <table>
       <thead><tr>
         <th class="c-num">#</th>
@@ -1060,7 +1126,7 @@ function renderArtist(){
     const e = map.get(k); e.count++; if(s.fav) e.fav++;
   }
   const list = [...map.values()].sort((a,b) => b.count - a.count || a.name.localeCompare(b.name,'ja'));
-  document.getElementById('hero-s').textContent = `${list.length} 組　—　${isMobile ? 'タップ' : 'カードを押す'}でそのアーティストの曲だけ表示`;
+  document.getElementById('hero-s').textContent = `${list.length} 組　—　${isMobile ? 'タップ' : 'カードを押す'}でその曲だけ表示（上のボタンでここへ戻れます）`;
 
   const c = document.getElementById('content');
   c.innerHTML = list.length ? `<div class="grid">${list.map(a => `
@@ -1460,6 +1526,7 @@ function openEdit(id){
 const quickbar = document.getElementById('quickbar');
 const scrim    = document.getElementById('scrim');
 function openSheet(){
+  fillArtistField();                    // アーティスト絞り込み中なら、その名前を入れておく
   if(!isMobile) { document.getElementById('qa-title').focus(); return; }
   quickbar.classList.add('open'); scrim.classList.add('on');
   setTimeout(() => document.getElementById('qa-title').focus(), 260);
@@ -1467,14 +1534,65 @@ function openSheet(){
 function closeSheet(){ quickbar.classList.remove('open'); scrim.classList.remove('on'); }
 
 /* =========================================================
+   左スワイプで削除ボタンを出す（モバイルのマイメモ）
+   ========================================================= */
+const SWIPE_W = 92;        // CSS の .swipe-del の幅と揃える
+let swipeMoved = false;    // 直前がスワイプなら、続けて発火するクリックは無視する
+
+function closeSwipes(except){
+  document.querySelectorAll('.swipe.open').forEach(el => { if(el !== except) el.classList.remove('open'); });
+}
+
+function attachSwipe(root){
+  let el = null, inner = null, x0 = 0, y0 = 0, dx = 0, base = 0, axis = null;
+
+  root.addEventListener('touchstart', e => {
+    if(e.touches.length !== 1) return;
+    const s = e.target.closest('.swipe');
+    closeSwipes(s);                                   // 他の行が開いていたら閉じる
+    if(!s) return;
+    el = s; inner = s.querySelector('.swipe-inner');
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    base = dx = s.classList.contains('open') ? -SWIPE_W : 0;
+    axis = null;
+  }, { passive:true });
+
+  root.addEventListener('touchmove', e => {
+    if(!el) return;
+    const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+    if(!axis){
+      if(Math.abs(mx) < 8 && Math.abs(my) < 8) return;     // まだ方向が定まらない
+      if(Math.abs(my) >= Math.abs(mx)){ el = null; return; } // 縦スクロールに譲る
+      axis = 'x'; el.classList.add('dragging'); swipeMoved = true;
+    }
+    e.preventDefault();                                    // 横スワイプ中はスクロールさせない
+    dx = Math.max(-SWIPE_W - 24, Math.min(0, base + mx));
+    inner.style.transform = `translateX(${dx}px)`;
+  }, { passive:false });
+
+  const finish = () => {
+    if(!el) return;
+    inner.style.transform = '';
+    el.classList.remove('dragging');
+    if(axis === 'x') el.classList.toggle('open', dx < -SWIPE_W / 2);
+    el = null; inner = null; axis = null;
+    setTimeout(() => { swipeMoved = false; }, 350);        // クリックが来なかった場合の保険
+  };
+  root.addEventListener('touchend', finish);
+  root.addEventListener('touchcancel', finish);
+}
+
+/* =========================================================
    イベント
    ========================================================= */
 document.getElementById('nav').onclick = e => {
   const b = e.target.closest('button[data-view]'); if(!b) return;
+  clearArtistFilter();
   view = b.dataset.view; render(); document.getElementById('main').scrollTop = 0;
 };
 document.getElementById('tabbar').onclick = e => {
   const b = e.target.closest('button[data-view]'); if(!b) return;
+  clearArtistFilter();
   view = b.dataset.view; closeSheet(); render(); document.getElementById('main').scrollTop = 0;
 };
 document.getElementById('q').oninput = e => { query = e.target.value; render(); };
@@ -1491,11 +1609,22 @@ document.getElementById('sortbar').onclick = e => {
 
 /* 本文クリック */
 document.getElementById('content').addEventListener('click', e => {
+  if(swipeMoved){ swipeMoved = false; return; }        // スワイプ直後のクリックは無視
+
   const sortTh = e.target.closest('th[data-sort]');
   if(sortTh){ toggleSort(view === 'history' ? sortH : sortS, sortTh.dataset.sort, sortTh.dataset.dir); return; }
 
+  const back = e.target.closest('[data-act="artist-back"],[data-act="artist-clear"]');
+  if(back){
+    const toList = back.dataset.act === 'artist-back';
+    clearArtistFilter();
+    if(toList) view = 'artist';
+    render(); document.getElementById('main').scrollTop = 0;
+    return;
+  }
+
   const card = e.target.closest('.acard');
-  if(card){ query = card.dataset.artist; document.getElementById('q').value = query; view = 'memo'; render(); return; }
+  if(card){ selectArtist(card.dataset.artist); return; }
 
   const hrow = e.target.closest('[data-hkey]');
   if(hrow && e.target.closest('[data-act="tomemo"]')){
@@ -1507,6 +1636,9 @@ document.getElementById('content').addEventListener('click', e => {
   const row = e.target.closest('[data-id]'); if(!row) return;
   const s = songs.find(x => x.id === row.dataset.id); if(!s) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
+
+  // スワイプで開いている行は、削除以外をタップしたらまず閉じる
+  if(row.classList.contains('open') && act !== 'del'){ row.classList.remove('open'); return; }
 
   if(act === 'fav'){ s.fav = !s.fav; save(); render(); return; }
   if(act === 'del'){
@@ -1623,6 +1755,8 @@ document.addEventListener('keydown', e => {
   if(e.key === '/'){ e.preventDefault(); document.getElementById('q').focus(); }
   if(e.key === 'n'){ e.preventDefault(); openSheet(); }
 });
+
+attachSwipe(document.getElementById('content'));
 
 render();
 detectBackend();  // ローカルサーバー or proxy を検出して自動取得ボタンを有効化
