@@ -187,8 +187,6 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px}
 .panel h3{margin:0 0 6px;font-size:15px}
 .panel .note{color:var(--muted);font-size:12.5px;line-height:1.75;margin:0 0 12px}
-.panel textarea{width:100%;min-height:120px;resize:vertical;border-radius:10px;padding:12px;font-size:13px;background:rgba(0,0,0,.35);border:1px solid var(--line);outline:none;line-height:1.6;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
-.panel textarea:focus{border-color:rgba(255,255,255,.28)}
 .panel-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .btn{padding:9px 18px;border-radius:999px;font-size:13px;font-weight:800;transition:.15s;background:rgba(255,255,255,.1);border:1px solid var(--line)}
 .btn:hover{background:rgba(255,255,255,.16)}
@@ -736,17 +734,6 @@ function attachSuggest(input, mode, partner){
    damtomoId は会員番号（CDMカード番号）を Base64 したもの。
    例）MTIzNDU2Nzg5 → 123456789
    ========================================================= */
-const DAM_PROFILE   = 'https://www.clubdam.com/app/damtomo/member/info/Profile.do?damtomoId=';
-const DAM_SCORING   = 'https://www.clubdam.com/app/damtomo/SP/scoring/public/';
-
-/* 採点方式ごとの公開りれきページ。damtomoId だけで開けます
-   （cdmCardNo はサーバーが補完、cdmToken は不要） */
-const SCORING = [
-  ['ScoringHeartsList', '精密採点AiHeart'],
-  ['ScoringAiList',     '精密採点Ai'],
-  ['ScoringDxgList',    '精密採点DX-G'],
-];
-
 /** URL / damtomoId / 会員番号 のいずれを渡しても {cardNo, damtomoId} を返す */
 function parseDamId(input){
   let s = String(input || '').trim();
@@ -765,21 +752,6 @@ function parseDamId(input){
   }
   return null;
 }
-function damProfileUrl(d){ return DAM_PROFILE + encodeURIComponent(d.damtomoId); }
-function damScoringUrl(page, d){ return DAM_SCORING + page + '.do?damtomoId=' + encodeURIComponent(d.damtomoId) + '&detailFlg=0'; }
-
-/* DAM★とものページ上で実行して、表をCSVにしてクリップボードへコピーするブックマークレット */
-const BOOKMARKLET = `javascript:(function(){var r=[];document.querySelectorAll('table tr').forEach(function(tr){var c=[].map.call(tr.querySelectorAll('th,td'),function(t){return '"'+t.textContent.replace(/\\s+/g,' ').trim().replace(/"/g,'""')+'"';});if(c.length)r.push(c.join(','));});if(!r.length){alert('表が見つかりませんでした');return;}var s=r.join('\\n');function f(){window.prompt('コピーしてカラオケメモに貼り付けてください',s);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(function(){alert(r.length+'行をコピーしました');},f);}else{f();}})();`;
-
-async function copyText(text, okMsg){
-  try{
-    await navigator.clipboard.writeText(text);
-    toast(okMsg);
-  }catch{
-    window.prompt('コピーしてください', text);
-  }
-}
-
 /* =========================================================
    歌唱履歴の集計
    ========================================================= */
@@ -1267,12 +1239,6 @@ function renderHistory(){
           <span style="color:var(--muted);font-size:12px" id="dam-newpw-msg"></span>
         </div>
       </div>` : ''}
-      <div class="side-title" style="padding:12px 0 8px">歌唱履歴を開く（手動コピペ用）</div>
-      <div class="panel-actions">
-        ${SCORING.map(([page, label]) =>
-          `<a class="btn" href="${esc(damScoringUrl(page, dam))}" target="_blank" rel="noopener">${label}</a>`).join('')}
-        <a class="btn" href="${esc(damProfileUrl(dam))}" target="_blank" rel="noopener">プロフィール</a>
-      </div>
       <div class="panel-actions" style="margin-top:14px">
         ${damEnc ? `<button class="btn ghost" id="dam-lock">🔒 ロック</button>` : ''}
         <button class="btn ghost" id="dam-delete">アカウントを削除</button>
@@ -1311,25 +1277,14 @@ function renderHistory(){
     </div>`;
   }
 
-  const panel = accPanel + `
-    <div class="panel">
-      <h3>歌唱履歴を取り込む</h3>
-      <p class="note">
-        上のボタンで開いた採点りれきページの表を選択してコピー → 下に貼り付けて「取り込む」。
-        <b>CSV・TSV・HTML（ページからそのままコピー）</b>を自動判別し、<code>曲名 / アーティスト / 歌唱日 / 点数</code> の列を見出しから探します。<br>
-        PCなら「ブックマークレットをコピー」で取得したコードをブックマークに登録しておくと、履歴ページで押すだけで表がCSVでコピーされます。
-      </p>
-      <textarea id="imp-text" placeholder="曲名,アーティスト,歌唱日,点数&#10;夜に駆ける,YOASOBI,2026/07/28,88.512&#10;Pretender,Official髭男dism,2026/07/28,91.204"></textarea>
-      <div class="panel-actions">
-        <button class="btn primary" id="imp-run">取り込む</button>
-        <button class="btn" id="imp-bm">ブックマークレットをコピー</button>
-        <button class="btn ghost" id="imp-clear">履歴を全消去</button>
-        <span style="color:var(--muted);font-size:12px" id="imp-msg"></span>
-      </div>
-    </div>`;
+  // 全消去はアカウントの連携状態に関わらず届くようにしておく
+  const panel = accPanel + (history.length ? `
+    <div class="panel-actions" style="margin:-8px 0 18px">
+      <button class="btn ghost" id="hist-clear">取り込んだ履歴を全消去</button>
+    </div>` : '');
 
   if(!rows.length){
-    c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>上の欄に DAM★とも の歌唱履歴を貼り付けてください。</p></div>`;
+    c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>アカウントを登録して「⟳ 精密採点履歴を自動取得」を押してください。</p></div>`;
   } else if(isMobile){
     c.innerHTML = panel + `<div class="mlist">${rows.map(r => `
       <div class="mrow" data-hkey="${esc(r.key)}">
@@ -1384,11 +1339,12 @@ function renderHistory(){
     if(backendMode === 'proxy') toast(proxyAlive ? '取得サーバーに接続できました' : '取得サーバーに接続できませんでした');
   };
 
-  document.getElementById('imp-run').onclick = runImport;
-  document.getElementById('imp-bm').onclick  = () => copyText(BOOKMARKLET, 'ブックマークレットをコピーしました');
-  document.getElementById('imp-clear').onclick = () => {
+  const histClear = document.getElementById('hist-clear');
+  if(histClear) histClear.onclick = () => {
     if(!history.length) return;
-    if(confirm(`歌唱履歴 ${history.length} 件をすべて削除します。よろしいですか？`)){ history = []; save(); render(); toast('履歴を削除しました'); }
+    if(confirm(`取り込んだ歌唱履歴 ${history.length} 件をすべて削除します。よろしいですか？（マイメモは消えません）`)){
+      history = []; save(); render(); toast('履歴を削除しました');
+    }
   };
 
   const regBtn = document.getElementById('dam-set');
@@ -1451,24 +1407,7 @@ function renderMore(){
   document.getElementById('m-csv').onclick    = doCsv;
 }
 
-/* =========================================================
-   履歴インポート（CSV / TSV）
-   ========================================================= */
-function splitLine(line, delim){
-  if(delim === '\t') return line.split('\t').map(s => s.trim());
-  const out = []; let cur = '', inQ = false;
-  for(let i = 0; i < line.length; i++){
-    const ch = line[i];
-    if(inQ){
-      if(ch === '"'){ if(line[i+1] === '"'){ cur += '"'; i++; } else inQ = false; }
-      else cur += ch;
-    } else if(ch === '"') inQ = true;
-    else if(ch === ',') { out.push(cur.trim()); cur = ''; }
-    else cur += ch;
-  }
-  out.push(cur.trim());
-  return out;
-}
+/* 取得した歌唱日（"2026-07-28" や "2026年7月28日" など）をミリ秒に直す */
 function parseDate(s){
   if(!s) return null;
   const t = String(s).replace(/年|\//g,'-').replace(/月/g,'-').replace(/日/g,' ').trim();
@@ -1477,87 +1416,6 @@ function parseDate(s){
   const p = Date.parse(t);
   return isNaN(p) ? null : p;
 }
-function parseScore(s){
-  const m = String(s ?? '').match(/\d+(\.\d+)?/);
-  if(!m) return null;
-  const v = parseFloat(m[0]);
-  return v >= 0 && v <= 100 ? v : null;
-}
-const HEAD = {
-  title : ['曲名','タイトル','楽曲','楽曲名','歌唱曲','song','title'],
-  artist: ['アーティスト','アーティスト名','歌手','歌手名','artist'],
-  date  : ['日付','歌唱日','歌唱日時','日時','date','歌った日'],
-  score : ['点数','得点','採点','score','精密採点'],
-};
-function detectHeader(cells){
-  const idx = {}; let hit = 0;
-  cells.forEach((c, i) => {
-    const v = norm(c);
-    for(const [field, keys] of Object.entries(HEAD)){
-      if(idx[field] == null && keys.some(k => v.includes(norm(k)))){ idx[field] = i; hit++; }
-    }
-  });
-  return hit >= 2 ? idx : null;
-}
-/** HTML をそのまま貼り付けられた場合、表の行を取り出す */
-function rowsFromHtml(text){
-  const doc = new DOMParser().parseFromString(text, 'text/html');
-  const out = [];
-  doc.querySelectorAll('tr').forEach(tr => {
-    const cells = [...tr.querySelectorAll('th,td')].map(td => td.textContent.replace(/\s+/g,' ').trim());
-    if(cells.some(c => c)) out.push(cells);
-  });
-  return out;
-}
-
-function runImport(){
-  const text = document.getElementById('imp-text').value;
-  const msgEl = document.getElementById('imp-msg');
-  let rows;
-
-  if(/<\s*(table|tr|td|th|tbody|html|body)\b/i.test(text)){        // HTML 貼り付け
-    rows = rowsFromHtml(text);
-    if(!rows.length){ msgEl.textContent = 'HTMLらしき内容ですが、表が見つかりませんでした。'; return; }
-  } else {                                                          // CSV / TSV
-    const lines = text.replace(/\r\n?/g,'\n').split('\n').filter(l => l.trim() !== '');
-    if(!lines.length){ msgEl.textContent = '貼り付ける内容がありません。'; return; }
-    const delim = lines[0].split('\t').length > lines[0].split(',').length ? '\t' : ',';
-    rows = lines.map(l => splitLine(l, delim));
-  }
-
-  // 見出し行は先頭とは限らないので、最初の数行から探す
-  let idx = null, headerRow = -1;
-  for(let i = 0; i < Math.min(rows.length, 6); i++){
-    const d = detectHeader(rows[i]);
-    if(d){ idx = d; headerRow = i; break; }
-  }
-  let body = idx ? rows.slice(headerRow + 1) : rows;
-  if(!idx) idx = { title:0, artist:1, date:2, score:3 };
-
-  const seen = new Set(history.map(r => norm(r.title) + '|' + norm(r.artist) + '|' + (r.date || '')));
-  let added = 0, skipped = 0;
-
-  for(const r of body){
-    const title = String(r[idx.title] ?? '').trim();
-    if(!title) continue;
-    const rec = {
-      id: uid(),
-      title,
-      artist: String(idx.artist != null ? (r[idx.artist] ?? '') : '').trim(),
-      date: parseDate(idx.date != null ? r[idx.date] : ''),
-      score: parseScore(idx.score != null ? r[idx.score] : ''),
-    };
-    const sig = norm(rec.title) + '|' + norm(rec.artist) + '|' + (rec.date || '');
-    if(seen.has(sig)){ skipped++; continue; }
-    seen.add(sig); history.push(rec); added++;
-  }
-
-  save(); render();
-  const m = document.getElementById('imp-msg');
-  if(m) m.textContent = `${added} 件を取り込みました${skipped ? `（重複 ${skipped} 件はスキップ）` : ''}`;
-  toast(added ? `${added} 件の履歴を取り込みました` : '新しい履歴はありませんでした');
-}
-
 /* =========================================================
    追加・編集・削除
    ========================================================= */
