@@ -40,7 +40,8 @@ export default {
     const songQ = url.searchParams.get("songRange");
     if (songQ != null) {
       try {
-        return json(await lookupSongRange(songQ, url.searchParams.get("artist") || ""), cors);
+        return json(await lookupSongRange(
+          songQ, url.searchParams.get("artist") || "", url.searchParams.get("debug") === "1"), cors);
       } catch (e) {
         return json({ found: false, message: "音域の取得に失敗しました: " + e.message }, cors);
       }
@@ -112,8 +113,8 @@ export default {
    ・違う曲のデータを掴むと害が大きいので、曲名が一致しない候補は採らない
    ========================================================= */
 const RANGE_SOURCES = [
-  { name: "音域研究所",     base: "https://onikikenkyujo.com", path: "\\d{4}/\\d{2}/\\d{2}/[^\"#]+" },
-  { name: "J-POP 音域の沼", base: "https://vocal-range.com",   path: "archives/[^\"#]+\\.html" },
+  { name: "音域研究所",     base: "https://onikikenkyujo.com", path: "\\d{4}/\\d{2}/\\d{2}/.+" },
+  { name: "J-POP 音域の沼", base: "https://vocal-range.com",   path: "archives/.+\\.html" },
 ];
 const NOTE_RE = "(?:hihi|hi|mid1|mid2|lowlow|low)[A-G](?:#|♯)?";
 
@@ -122,43 +123,78 @@ function normJa(s) {
     .replace(/[（）()『』「」【】［］\[\]＆&・,，.。'’"”!！?？~〜\-–—]/g, "");
 }
 
-async function lookupSongRange(title, artist) {
+async function lookupSongRange(title, artist, debug) {
   title = String(title || "").trim();
   if (!title) return { found: false, message: "曲名がありません。" };
 
   const tried = [];
+  const trace = [];                             // debug=1 のときだけ返す
   for (const src of RANGE_SOURCES) {
     tried.push(src.name);
     // まず曲名＋アーティスト。表記違いで空振りしたら曲名だけで引き直す
     const queries = artist ? [`${title} ${artist}`, title] : [title];
     for (const q of queries) {
+      const step = { source: src.name, query: q };
       let hits;
-      try { hits = pickResults(await getUtf8(`${src.base}/?s=${encodeURIComponent(q)}`), src); }
-      catch { continue; }                       // 1サイト落ちても他を試す
+      try {
+        const html = await getUtf8(`${src.base}/?s=${encodeURIComponent(q)}`);
+        step.htmlLength = html.length;
+        hits = pickResults(html, src);
+      } catch (e) {
+        step.error = e.message; trace.push(step); continue;   // 1サイト落ちても他を試す
+      }
+      step.hits = hits.slice(0, 8).map((h) => ({ url: h.url, match: h.match }));
       const best = bestMatch(hits, title, artist);
+      step.matched = best ? best.url : null;
+      trace.push(step);
       if (!best) continue;
 
-      const r = parseRangePage(await getUtf8(best.url));
+      const page = await getUtf8(best.url);
+      const r = parseRangePage(page);
+      step.parsed = r;
       if (!r.high || !r.low) continue;          // 読めなければ次の候補へ
-      return { found: true, pageTitle: best.text, url: best.url, source: src.name, ...r };
+      const out = { found: true, pageTitle: best.text, url: best.url, source: src.name, ...r };
+      return debug ? { ...out, trace } : out;
     }
   }
-  return { found: false, message: `該当する曲が見つかりませんでした（${tried.join(" / ")}を確認）。` };
+  const out = { found: false, message: `該当する曲が見つかりませんでした（${tried.join(" / ")}を確認）。` };
+  return debug ? { ...out, trace } : out;
 }
 
-/** 検索結果ページから記事リンクを拾う */
+/**
+ * 検索結果ページから記事リンクを拾う。
+ * href は相対のこともあり、アンカーの中身がサムネイル画像だけのこともあるので、
+ * URL解決はブラウザのURLに任せ、照合用の文字列は複数の手がかりから作る
+ */
 function pickResults(html, src) {
-  const out = [], seen = new Set();
-  const re = new RegExp(`<a[^>]+href="(${src.base}/${src.path})"[^>]*>([\\s\\S]*?)</a>`, "g");
-  for (const m of html.matchAll(re)) {
-    const url = m[1];
-    if (seen.has(url)) continue;
-    const text = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-    if (!text) continue;
-    seen.add(url);
-    out.push({ url, text: decodeEntities(text) });
+  const host = new URL(src.base).host;
+  const pathRe = new RegExp("^" + src.path + "$");
+  const byUrl = new Map();
+
+  for (const m of html.matchAll(/<a\b[^>]*?href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    let u;
+    try { u = new URL(decodeEntities(m[1]).trim(), src.base); } catch { continue; }
+    if (u.host !== host) continue;
+    if (!pathRe.test(u.pathname.replace(/^\/+/, ""))) continue;
+
+    const inner = m[2];
+    const alt = (inner.match(/\balt=["']([^"']*)["']/i) || [])[1] || "";
+    const text = decodeEntities(inner.replace(/<[^>]*>/g, " ") + " " + alt).replace(/\s+/g, " ").trim();
+
+    const url = u.origin + u.pathname;
+    const prev = byUrl.get(url);
+    if (!prev || text.length > prev.text.length) byUrl.set(url, { url, text });
   }
-  return out;
+
+  // スラッグ自体が日本語のタイトルになっているサイトが多いので、照合の手がかりに足す
+  return [...byUrl.values()].map((h) => ({ ...h, match: `${h.text} ${slugText(h.url)}` }));
+}
+
+function slugText(url) {
+  try {
+    const last = new URL(url).pathname.replace(/\/+$/, "").split("/").pop() || "";
+    return decodeURIComponent(last).replace(/[-_+]+/g, " ");
+  } catch { return ""; }
 }
 
 /** 曲名が一致しているものだけ採用する（別の曲を掴まないため） */
@@ -166,7 +202,7 @@ function bestMatch(hits, title, artist) {
   const t = normJa(title), a = normJa(artist);
   let best = null, bestScore = 0;
   for (const h of hits) {
-    const x = normJa(h.text);
+    const x = normJa(h.match || h.text);
     if (!t || !x.includes(t)) continue;         // 曲名一致は必須
     const score = 2 + (a && x.includes(a) ? 1 : 0);
     if (score > bestScore) { bestScore = score; best = h; }
