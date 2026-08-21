@@ -207,19 +207,21 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .dnum{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 
 /* 声域の鍵盤。ラベル・鍵盤・数値を3列のgridで揃える */
-.kbdgrid{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px 8px}
+/* 列幅を固定する。ラベルや音名の桁数で鍵盤の幅が変わると、
+   キーを上下したときに鍵盤ごと動いて見えてしまう */
+.kbdgrid{display:grid;grid-template-columns:74px minmax(0,1fr) 92px;align-items:center;gap:5px 8px}
 .kbd{position:relative;height:44px;border-radius:5px;overflow:hidden;background:#15151d;border:1px solid var(--line)}
 .kbd .wk{position:absolute;top:0;bottom:0;background:#e9e9f0;border-right:1px solid #b9b9c8}
 .kbd .wk span{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:7px;font-weight:800;color:#8b8b9e}
 .kbd .bk{position:absolute;top:0;height:60%;background:#1c1c26;border-radius:0 0 2px 2px;z-index:2}
-.kbl{font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap}
+.kbl{font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kbt{position:relative;height:11px;border-radius:6px;background:rgba(255,255,255,.06)}
 .kbt i{position:absolute;top:0;bottom:0;border-radius:6px;min-width:3px}
 .kbt i.song{background:linear-gradient(90deg,var(--accent2),#a78bfa)}
 .kbt i.me{background:linear-gradient(90deg,#3ddc97,#7ee8c6)}
 .kbt i.fit{background:linear-gradient(90deg,#22c55e,#4ade80)}
 .kbt i.over{background:linear-gradient(90deg,var(--accent),#ff8fb5)}
-.kbv{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kbv{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
 .kbv em{font-style:normal;margin-left:5px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.08)}
 .rb-verdict{margin-top:9px;font-size:11.5px;font-weight:800}
 .rb-verdict.ok{color:var(--ok)}
@@ -237,6 +239,19 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .vcell span{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
 .vcell b{font-size:19px;font-variant-numeric:tabular-nums}
 .vcell.wide{flex:1 1 100%}
+/* ---- キー設定の目盛り ---- */
+.ks{display:flex;align-items:flex-end;gap:9px;margin:10px 0 4px;padding-bottom:12px}
+.ks-end{flex:none;font-size:15px;font-weight:800;color:var(--muted);line-height:1;padding-bottom:1px}
+.ks-track{position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;height:16px}
+.ks-tick{position:relative;flex:1;min-width:0;height:16px;display:flex;align-items:flex-end;justify-content:center;padding:0}
+.ks-tick::after{content:'';width:1px;height:8px;background:rgba(255,255,255,.26);transition:.12s}
+.ks-tick.major::after{height:12px;background:rgba(255,255,255,.4)}
+.ks-tick.center::after{width:2px;height:16px;background:rgba(255,255,255,.55)}
+.ks-tick.on::after{width:2px;height:16px;background:var(--accent)}
+.ks-tick i{position:absolute;top:-12px;font-style:normal;font-size:13px;line-height:1;color:var(--accent);opacity:0;transition:.12s}
+.ks-tick.on i{opacity:1}
+.ks-base{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--muted);white-space:nowrap}
+
 .keyhint{display:flex;align-items:center;gap:9px;margin-top:7px;font-size:11.5px;color:var(--muted)}
 .keyhint button{flex:none;padding:4px 11px;border-radius:999px;border:1px solid rgba(61,220,151,.4);color:var(--ok);font-size:11px;font-weight:800}
 .keyhint button:hover{background:rgba(61,220,151,.13)}
@@ -475,6 +490,8 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   #hdlg{width:100vw;max-height:94dvh}
   .sec.twocol{grid-template-columns:1fr}
   .take-score{font-size:26px}
+  .kbdgrid{grid-template-columns:62px minmax(0,1fr) 82px;gap:5px 6px}
+  .kbl,.kbv{font-size:9.5px}
   .dlg-f{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
   .dlg-f .btn{flex:1;text-align:center;padding:13px}
   .dlg-f .left{flex:0 0 100%;margin-right:0;order:9}
@@ -560,6 +577,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
               <button id="qa-plus" aria-label="キーを上げる">＋</button>
             </div>
           </div>
+          <div class="ks" id="qa-keyscale"></div>
           <div class="keyhint" id="qa-keyhint" hidden>
             <span class="why" id="qa-keywhy"></span>
             <button type="button" id="qa-keyapply"></button>
@@ -597,6 +615,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
       <div class="stepper" style="width:fit-content">
         <button id="d-minus">−</button><div class="val" id="d-keyval">±0</div><button id="d-plus">＋</button>
       </div>
+      <div class="ks" id="d-keyscale"></div>
     </div>
     <div class="field"><label>メモ</label><textarea id="d-memo" placeholder="キー調整のコツ、歌いにくい箇所など"></textarea></div>
   </div>
@@ -2348,8 +2367,45 @@ document.getElementById('content').addEventListener('click', e => {
   if(act === 'edit' || isMobile) openEdit(s.id);   // モバイルは行タップで編集
 });
 
+/* =========================================================
+   キー設定の目盛り（中央が標準、左が♭＝下げ、右が♯＝上げ）
+   ========================================================= */
+const KEY_MIN = -12, KEY_MAX = 12;
+
+function renderKeyScale(elId, value){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const ticks = [];
+  for(let k = KEY_MIN; k <= KEY_MAX; k++){
+    const cls = [
+      k === 0 ? 'center' : '',
+      k === value ? 'on' : '',
+      k !== 0 && k % 6 === 0 ? 'major' : '',
+    ].filter(Boolean).join(' ');
+    ticks.push(`<button type="button" class="ks-tick ${cls}" data-k="${k}" aria-label="キー ${fmtKey(k)}"><i>★</i></button>`);
+  }
+  el.innerHTML = `
+    <span class="ks-end">♭</span>
+    <div class="ks-track">${ticks.join('')}<span class="ks-base">標準</span></div>
+    <span class="ks-end">♯</span>`;
+}
+
+/* 目盛りをタップしたら、その値に飛ばす */
+function attachKeyScale(elId, onPick){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.addEventListener('click', e => {
+    const t = e.target.closest('.ks-tick');
+    if(t) onPick(Number(t.dataset.k));
+  });
+}
+
 /* クイック追加 */
-function setQaKey(v){ qaKey = Math.max(-12, Math.min(12, v)); document.getElementById('qa-keyval').textContent = fmtKey(qaKey); }
+function setQaKey(v){
+  qaKey = Math.max(KEY_MIN, Math.min(KEY_MAX, v));
+  document.getElementById('qa-keyval').textContent = fmtKey(qaKey);
+  renderKeyScale('qa-keyscale', qaKey);
+}
 document.getElementById('qa-minus').onclick = () => { setQaKey(qaKey - 1); keyTouched = true; updateKeyHint(); };
 document.getElementById('qa-plus').onclick  = () => { setQaKey(qaKey + 1); keyTouched = true; updateKeyHint(); };
 document.getElementById('qa-save').onclick  = quickSave;
@@ -2571,7 +2627,13 @@ document.getElementById('h-tomemo').onclick = () => {
 };
 
 /* 編集ダイアログ */
-function setDKey(v){ dKey = Math.max(-12, Math.min(12, v)); document.getElementById('d-keyval').textContent = fmtKey(dKey); }
+function setDKey(v){
+  dKey = Math.max(KEY_MIN, Math.min(KEY_MAX, v));
+  document.getElementById('d-keyval').textContent = fmtKey(dKey);
+  renderKeyScale('d-keyscale', dKey);
+}
+attachKeyScale('d-keyscale', k => setDKey(k));
+attachKeyScale('qa-keyscale', k => { setQaKey(k); keyTouched = true; updateKeyHint(); });
 document.getElementById('d-minus').onclick  = () => setDKey(dKey - 1);
 document.getElementById('d-plus').onclick   = () => setDKey(dKey + 1);
 document.getElementById('d-cancel').onclick = () => document.getElementById('dlg').close();
@@ -2657,6 +2719,8 @@ document.addEventListener('keydown', e => {
 });
 
 attachSwipe(document.getElementById('content'));
+setQaKey(0);            // キー目盛りの初期描画も兼ねる
+renderKeyScale('d-keyscale', 0);
 
 render();
 detectBackend();  // ローカルサーバー or proxy を検出して自動取得ボタンを有効化
