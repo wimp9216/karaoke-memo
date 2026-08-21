@@ -1129,6 +1129,15 @@ async function fetchDamHistory(btn){
     if(added)    parts.push(`${added} 件を取り込みました`);
     if(enriched) parts.push(`${enriched} 件に採点の内訳を追加しました`);
     toast(parts.length ? parts.join(' / ') : `取得済みでした（${recs.length}件を確認）`);
+
+    // 一部の採点種別だけ取れないことがある。黙って欠けたままにしない
+    const byMode = data.counts ? Object.entries(data.counts).map(([m, n]) => `${m} ${n}件`).join('　') : '';
+    const failed = Array.isArray(data.errors) ? data.errors : [];
+    setMsg(
+      `${recs.length} 件を取得${byMode ? `（${byMode}）` : ''}。` +
+      (failed.length ? `　取得できなかった種別があります → ${failed.join(' / ')}` : '')
+    );
+    if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
   }catch(err){
     if(isNetworkError(err)){
       // 「Failed to fetch」はブラウザが理由を隠すので、考えられる原因を出しておく
@@ -1829,7 +1838,10 @@ function takeHtml(t){
       ${d?.key != null ? `<span class="keychip">キー ${fmtKey(d.key)}</span>` : ''}
     </div>`;
 
-  if(!d) return `<div class="take">${header}<div class="take-sub">この歌唱には内訳データがありません。再取得すると追加されます。</div></div>`;
+  if(!d) return `<div class="take">${header}<div class="take-sub">
+    この歌唱には内訳データがありません。「⟳ 精密採点履歴を自動取得」を押すと、
+    いま取得できる種別のぶんは追加されます。それでも出ない場合は、
+    DAM★とも側がこの採点の詳細を返していません。</div></div>`;
 
   const counts = d.counts ? Object.entries(d.counts).filter(([, v]) => v > 0) : [];
 

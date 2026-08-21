@@ -82,7 +82,9 @@ export default {
 
       return json({
         records,
-        // 空振りしたときは、DAM側が何と言って断ったのかをそのまま見せる
+        // 一部の採点種別だけ失敗することがあるので、成功時でも理由は必ず返す
+        errors,
+        counts: countByMode(records),
         message: records.length ? "" : (errors.join(" / ") || "歌唱履歴が見つかりませんでした。"),
       }, cors);
     } catch (e) {
@@ -90,6 +92,12 @@ export default {
     }
   },
 };
+
+function countByMode(records) {
+  const out = {};
+  for (const r of records) out[r.mode] = (out[r.mode] || 0) + 1;
+  return out;
+}
 
 /** 取得できたページの素性を報告する。値は伏せ、形と長さだけ出す */
 function diagnose(page, cdmCardNo, cdmToken) {
@@ -210,16 +218,21 @@ async function fetchAllScoringPages(cdmCardNo, cdmToken, damtomoId) {
         if (status && status[1] !== "OK") {
           // DAM側の断り文句を拾っておく（原因が分からないまま空になるのを防ぐ）
           const reason = extract(xml, /<message>([^<]*)<\/message>/) || extract(xml, /<error[^>]*>([^<]*)<\/error>/);
-          if (pageNo === 1) errors.push(`${type.name}: ${reason || status[1]}`);
+          errors.push(`${type.name}: ${reason || status[1]}（${pageNo}ページ目）`);
           break;
         }
-        all.push(...parseScoringPage(xml, type, damtomoId));
+        const got = parseScoringPage(xml, type, damtomoId);
+        all.push(...got);
+        if (pageNo === 1 && !got.length) {
+          // status は OK なのに1件も取れない＝タグ名が想定と違う可能性がある
+          errors.push(`${type.name}: 応答は正常ですが <${type.tag}> を取り出せませんでした`);
+        }
         const hn = xml.match(/<page[^>]*hasNext="([^"]+)"/);
         hasNext = hn && hn[1] === "1";
         pageNo++;
         if (pageNo > 50) break;
       } catch (e) {
-        if (pageNo === 1) errors.push(`${type.name}: ${e.message}`);
+        errors.push(`${type.name}: ${e.message}（${pageNo}ページ目）`);
         hasNext = false;
       }
     }
