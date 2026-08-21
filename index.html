@@ -206,16 +206,25 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .dots i.on{background:linear-gradient(135deg,#7ee8c6,var(--ok))}
 .dnum{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 
-/* 声域の鍵盤 */
-.kbd{position:relative;height:46px;border-radius:5px;overflow:hidden;background:#15151d;border:1px solid var(--line)}
+/* 声域の鍵盤。ラベル・鍵盤・数値を3列のgridで揃える */
+.kbdgrid{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px 8px}
+.kbd{position:relative;height:44px;border-radius:5px;overflow:hidden;background:#15151d;border:1px solid var(--line)}
 .kbd .wk{position:absolute;top:0;bottom:0;background:#e9e9f0;border-right:1px solid #b9b9c8}
-.kbd .wk.in{background:linear-gradient(180deg,#fff,#ffd7e6)}
-.kbd .wk.edge{background:linear-gradient(180deg,#fff,var(--accent))}
+.kbd .wk span{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:7px;font-weight:800;color:#8b8b9e}
 .kbd .bk{position:absolute;top:0;height:60%;background:#1c1c26;border-radius:0 0 2px 2px;z-index:2}
-.kbd .bk.in{background:#7a2545}
-.kbd .bk.edge{background:var(--accent)}
-.kbd-lab{margin-top:6px;font-size:11.5px;color:var(--muted)}
-.kbd-lab b{color:var(--text);font-variant-numeric:tabular-nums}
+.kbl{font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap}
+.kbt{position:relative;height:11px;border-radius:6px;background:rgba(255,255,255,.06)}
+.kbt i{position:absolute;top:0;bottom:0;border-radius:6px;min-width:3px}
+.kbt i.song{background:linear-gradient(90deg,var(--accent2),#a78bfa)}
+.kbt i.me{background:linear-gradient(90deg,#3ddc97,#7ee8c6)}
+.kbt i.fit{background:linear-gradient(90deg,#22c55e,#4ade80)}
+.kbt i.over{background:linear-gradient(90deg,var(--accent),#ff8fb5)}
+.kbv{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kbv em{font-style:normal;margin-left:5px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.08)}
+.rb-verdict{margin-top:9px;font-size:11.5px;font-weight:800}
+.rb-verdict.ok{color:var(--ok)}
+.rb-verdict.ng{color:#ff8fb5}
+.rb-foot{margin-top:5px;font-size:10.5px;color:var(--muted)}
 
 /* 表現力などの回数 */
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -1560,7 +1569,10 @@ function voicePanel(){
       <div class="vcell"><span>キーの幅</span><b>${fmtKey(v.keyMin)} 〜 ${fmtKey(v.keyMax)}</b></div>` : ''}`;
 
   const kbd = v.hasRange && v.lowest != null && v.highest != null
-    ? `<div style="margin:2px 0 12px">${keyboardRange(v.lowest, v.highest)}</div>` : '';
+    ? `<div style="margin:2px 0 14px">${keyboardSpans([
+        { label:'実測の全域', low:v.lowest, high:v.highest, cls:'me' },
+        { label:'ふだんの範囲', low:v.comfortLow, high:v.comfortHigh, cls:'fit' },
+      ])}</div>` : '';
 
   // 「キーを下げた曲のほうが点が高い」なら、それは有用な助言になる
   let advice = '';
@@ -1978,30 +1990,58 @@ function skillDots(v, max = 10){
           <span class="dnum">${v}/${max}</span>`;
 }
 
-/** 声域を鍵盤で示す。low〜high を塗り、前後に余白の鍵盤を置く */
-function keyboardRange(low, high){
-  if(low == null || high == null) return '';
-  const from = Math.max(0, low - 4), to = Math.min(127, high + 4);
-  const isBlack = n => [1,3,6,8,10].includes(n % 12);
+const IS_BLACK = n => [1,3,6,8,10].includes(((n % 12) + 12) % 12);
+
+/**
+ * 鍵盤の上に音域を重ねて比較する。
+ * spans: [{ label, low, high, cls }] — 複数渡すと同じ目盛りで並ぶ
+ */
+function keyboardSpans(spans){
+  const list = (spans || []).filter(s => s && s.low != null && s.high != null);
+  if(!list.length) return '';
+
+  const from = Math.max(0, Math.min(...list.map(s => s.low))  - 3);
+  const to   = Math.min(127, Math.max(...list.map(s => s.high)) + 3);
   const whites = [];
-  for(let n = from; n <= to; n++) if(!isBlack(n)) whites.push(n);
+  for(let n = from; n <= to; n++) if(!IS_BLACK(n)) whites.push(n);
+  if(!whites.length) return '';
   const w = 100 / whites.length;
 
+  // 音 → 鍵盤上のx位置(%)。黒鍵は直前の白鍵との境目に置く
+  const xOf = n => {
+    if(!IS_BLACK(n)){
+      const i = whites.indexOf(n);
+      return i < 0 ? 0 : i * w + w / 2;
+    }
+    return whites.filter(x => x < n).length * w;
+  };
+
   const whiteKeys = whites.map((n, i) =>
-    `<div class="wk ${n >= low && n <= high ? 'in' : ''} ${n === low || n === high ? 'edge' : ''}"
-          style="left:${(i * w).toFixed(3)}%;width:${w.toFixed(3)}%"></div>`).join('');
+    `<div class="wk" style="left:${(i * w).toFixed(3)}%;width:${w.toFixed(3)}%">${
+      n % 12 === 0 ? `<span>${noteName(n)}</span>` : ''}</div>`).join('');
 
   const blackKeys = [];
   for(let n = from; n <= to; n++){
-    if(!isBlack(n)) continue;
-    const leftWhite = whites.filter(x => x < n).length;      // 直前の白鍵の数＝位置
-    if(leftWhite === 0 || leftWhite >= whites.length) continue;
-    blackKeys.push(`<div class="bk ${n >= low && n <= high ? 'in' : ''} ${n === low || n === high ? 'edge' : ''}"
-      style="left:${(leftWhite * w - w * 0.3).toFixed(3)}%;width:${(w * 0.6).toFixed(3)}%"></div>`);
+    if(!IS_BLACK(n)) continue;
+    const left = whites.filter(x => x < n).length;
+    if(left === 0 || left >= whites.length) continue;
+    blackKeys.push(`<div class="bk" style="left:${(left * w - w * 0.3).toFixed(3)}%;width:${(w * 0.6).toFixed(3)}%"></div>`);
   }
 
-  return `<div class="kbd">${whiteKeys}${blackKeys.join('')}</div>
-    <div class="kbd-lab"><b>${noteName(low)}</b> 〜 <b>${noteName(high)}</b>（${high - low} 半音）</div>`;
+  const bars = list.map(s => {
+    const x1 = xOf(s.low), x2 = xOf(s.high);
+    return `
+      <span class="kbl">${esc(s.label || '')}</span>
+      <div class="kbt"><i class="${s.cls || ''}" style="left:${Math.min(x1,x2).toFixed(3)}%;width:${Math.max(1.5, Math.abs(x2-x1)).toFixed(3)}%"></i></div>
+      <span class="kbv">${noteName(s.low)}–${noteName(s.high)}<em>${s.high - s.low}</em></span>`;
+  }).join('');
+
+  return `<div class="kbdgrid">
+    <span></span>
+    <div class="kbd">${whiteKeys}${blackKeys.join('')}</div>
+    <span></span>
+    ${bars}
+  </div>`;
 }
 
 let hDetailKey = null;   // 表示中の曲
@@ -2151,7 +2191,7 @@ function takeHtml(t){
 
     ${d.range && d.range.low != null ? `<div class="sec">
       <div class="sech">声域</div>
-      ${keyboardRange(d.range.low, d.range.high)}
+      ${keyboardSpans([{ label:'この歌唱', low:d.range.low, high:d.range.high, cls:'me' }])}
     </div>` : ''}
 
     ${d.hearingType != null ? `<div class="take-sub">ハートタイプ：${esc(HEART_TYPES[d.hearingType] || 'タイプ ' + d.hearingType)}</div>` : ''}
@@ -2380,13 +2420,19 @@ function renderRangeBox(title, artist){
     : `歌唱${song.takes}回ぶんの実測（原曲キー換算）`;
   box.innerHTML = `
     <div class="rb-head">音域の比較<span>${srcLabel}${song.url ? ` <a href="${esc(song.url)}" target="_blank" rel="noopener">出典</a>` : ''}</span></div>
-    <div class="rb-rows">
-      <div><span>曲（地声）</span><b>${noteName(song.low)} 〜 ${noteName(song.high)}</b><i>${song.high - song.low}半音</i></div>
-      ${song.falsetto != null ? `<div><span>裏声最高音</span><b>${noteName(song.falsetto)}</b><i>参考</i></div>` : ''}
-      <div><span>あなた</span><b>${noteName(me.comfortLow)} 〜 ${noteName(me.comfortHigh)}</b><i>${me.comfortHigh - me.comfortLow}半音</i></div>
-      ${ra ? `<div class="${ra.fits ? 'ok' : 'ng'}"><span>${fmtKey(ra.key)}にすると</span><b>${noteName(song.low + ra.key)} 〜 ${noteName(song.high + ra.key)}</b>
-        <i>${ra.fits ? '収まります' : `${ra.over}半音はみ出す`}</i></div>` : ''}
-    </div>`;
+    ${keyboardSpans([
+      { label:'曲（原曲キー）', low:song.low, high:song.high, cls:'song' },
+      { label:'あなたの声域',   low:me.comfortLow, high:me.comfortHigh, cls:'me' },
+      ra ? { label:`${fmtKey(ra.key)} にすると`, low:song.low + ra.key, high:song.high + ra.key,
+             cls: ra.fits ? 'fit' : 'over' } : null,
+    ])}
+    <div class="rb-verdict ${ra && ra.fits ? 'ok' : 'ng'}">
+      ${ra ? (ra.fits
+        ? `${fmtKey(ra.key)} なら声域に収まります`
+        : `曲の音域が ${ra.over} 半音ぶん広く、どのキーでも収まりません（${fmtKey(ra.key)} が最も無理が少ない）`)
+        : ''}
+    </div>
+    ${song.falsetto != null ? `<div class="rb-foot">裏声最高音 ${noteName(song.falsetto)}（キー計算には含めていません）</div>` : ''}`;
   box.hidden = false;
 }
 
