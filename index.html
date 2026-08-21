@@ -137,6 +137,8 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .mchip{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(139,92,246,.16);border:1px solid rgba(139,92,246,.35);color:#c4b5fd;margin:2px 4px 0 0;white-space:nowrap}
 .rawline{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
 .dam-fetch-msg{color:var(--muted);font-size:12px;flex:1;min-width:0}
+.warnbox{margin:0 0 12px;padding:12px 14px;border-radius:10px;font-size:12.5px;line-height:1.85;color:#ffc9d8;background:rgba(255,61,129,.09);border:1px solid rgba(255,61,129,.32)}
+.warnbox b{color:#fff}
 
 /* ================= card rows (mobile) ================= */
 .mlist{display:flex;flex-direction:column}
@@ -261,8 +263,13 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 .field input:focus,.field textarea:focus{border-color:var(--accent)}
 .dlg-f{padding:0 22px 20px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .dlg-f .left{margin-right:auto}
-.toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);z-index:99;background:#f3f3f7;color:#0a0a0f;padding:11px 22px;border-radius:999px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:88vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);z-index:99;background:#f3f3f7;color:#0a0a0f;padding:11px 22px;border-radius:999px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:88vw;text-align:center;display:flex;align-items:center;gap:14px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.toast #toast-msg{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 親が pointer-events:none でも、このボタンだけは押せるようにする */
+.toast-act{pointer-events:auto;flex:none;margin:-4px -12px -4px 0;padding:7px 14px;border-radius:999px;background:#0a0a0f;color:#f3f3f7;font-size:12px;font-weight:800;letter-spacing:.02em}
+.toast-act:active{opacity:.72}
+.toast-act[hidden]{display:none}
 
 /* =========================================================
    MOBILE  (<=860px)
@@ -450,7 +457,10 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   </div>
 </dialog>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast">
+  <span id="toast-msg"></span>
+  <button class="toast-act" id="toast-act" hidden></button>
+</div>
 
 <script>
 /* =========================================================
@@ -464,13 +474,18 @@ const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 新: パスワードで暗号�
 const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
 // ▼ 共有Worker(Cloudflare)のURL。設定済みなので配布相手は設定不要でボタン取得できます。
 //   変更する場合はここを差し替えてください（末尾スラッシュ無し）。
-const DEFAULT_PROXY = 'https://karaoke-proxy.kupe0121.workers.dev';
+const DEFAULT_PROXY = 'https://karaoke-memo.kupe0121.workers.dev';
+// 過去に既定として配ったが、実体が無かったURL。保存されていたら捨てて既定に戻す
+const RETIRED_PROXIES = ['https://karaoke-proxy.kupe0121.workers.dev'];
 
 let songs   = load(LS_SONGS, []);
 let history = load(LS_HIST, []);
 let online  = load(LS_ONLINE, false);
 let backendMode = 'none';              // 'local'(server.js) | 'proxy'(Worker等) | 'none'
-let proxyUrl    = load(LS_PROXY, '') || DEFAULT_PROXY;   // 取得proxyのURL（保存が無ければ既定を使用）
+let proxyAlive  = null;                // proxyの疎通確認: null=未確認 / true / false
+let proxyUrl    = load(LS_PROXY, '');                    // 取得proxyのURL（保存が無ければ既定を使用）
+if(RETIRED_PROXIES.includes(proxyUrl)){ localStorage.removeItem(LS_PROXY); proxyUrl = ''; }
+proxyUrl = proxyUrl || DEFAULT_PROXY;
 
 let damEnc    = load(LS_DAMENC, null); // { v, salt, iv, ct } or null（暗号化アカウント）
 let dam       = load(LS_DAM, null);    // 現在リンク中のアカウント { damtomoId, cardNo } or null
@@ -509,11 +524,28 @@ function thumbStyle(seed){ const h = hue(seed); return `background:linear-gradie
 function initial(s){ return (String(s || '?').trim()[0] || '?').toUpperCase(); }
 
 let toastTimer;
-function toast(msg){
+/**
+ * トースト表示。action を渡すと数秒間ボタン付きで出る
+ * action: { label, run, ms }
+ */
+function toast(msg, action){
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  document.getElementById('toast-msg').textContent = msg;
+
+  const b = document.getElementById('toast-act');
+  if(action){
+    b.textContent = action.label;
+    b.hidden = false;
+    b.onclick = () => { hideToast(); action.run(); };
+  } else {
+    b.hidden = true; b.onclick = null;
+  }
+
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), action ? (action.ms || 6000) : 2000);
 }
+function hideToast(){ clearTimeout(toastTimer); document.getElementById('toast').classList.remove('show'); }
 
 function cmpVal(va, vb){
   if(typeof va === 'number' && typeof vb === 'number') return va - vb;
@@ -786,12 +818,37 @@ function histSig(r){
    ・無ければ proxyUrl が設定されていれば 'proxy'
    ========================================================= */
 async function detectBackend(){
+  proxyAlive = null;
   try{
     const r = await fetch('/api/health', { cache:'no-store' });
     if(r.ok && (await r.json()).status === 'ok'){ backendMode = 'local'; if(view === 'history') render(); return; }
   }catch{}
+
   backendMode = proxyUrl ? 'proxy' : 'none';
   if(view === 'history') render();
+  if(backendMode !== 'proxy') return;
+
+  // proxyが本当に生きているか確かめる（未デプロイのWorkerを掴んだままにしない）
+  proxyAlive = await pingProxy();
+  if(view === 'history') render();
+}
+
+/** damtomoIdなしで叩くと、生きているWorkerは即座にJSONを返す＝疎通確認になる */
+async function pingProxy(){
+  try{
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 8000);
+    const r = await fetch(proxyUrl, { signal:ctl.signal, cache:'no-store' });
+    clearTimeout(to);
+    if(!r.ok) return false;
+    await r.json();          // JSONでなければWorkerではない
+    return true;
+  }catch{ return false; }
+}
+
+/** fetch が通信レベルで失敗したか（CORS / DNS / 未デプロイなど） */
+function isNetworkError(err){
+  return err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(err.message || '');
 }
 
 /* 取得先URLを組み立てる（local: 同一オリジンAPI / proxy: Worker等） */
@@ -811,6 +868,9 @@ async function fetchDamHistory(btn){
   setMsg('DAM★ともから精密採点履歴を取得中…（曲数が多いと少し時間がかかります）');
   try{
     const res = await fetch(url);
+    if(!res.ok) throw new Error(`取得サーバーが ${res.status} ${res.statusText || ''} を返しました`.trim());
+    const ct = res.headers.get('content-type') || '';
+    if(!ct.includes('json')) throw new Error('取得サーバーがJSON以外を返しました。URLがWorkerのものか確認してください。');
     const data = await res.json();
     if(data.error) throw new Error(data.error);
     const recs = Array.isArray(data.records) ? data.records : [];
@@ -843,8 +903,17 @@ async function fetchDamHistory(btn){
     save(); render();
     toast(added ? `${added} 件の精密採点履歴を取り込みました` : `取得済みでした（${recs.length}件を確認）`);
   }catch(err){
-    setMsg('取得に失敗しました: ' + err.message);
-    toast('取得に失敗しました');
+    if(isNetworkError(err)){
+      // 「Failed to fetch」はブラウザが理由を隠すので、考えられる原因を出しておく
+      proxyAlive = false;
+      setMsg(backendMode === 'proxy'
+        ? `取得サーバー(proxy)に接続できませんでした（${proxyUrl}）。Cloudflare Worker が未デプロイか、URLが違う可能性があります。下の「取得サーバー(proxy)の設定」を確認してください。`
+        : 'ローカルサーバーに接続できませんでした。node server.js が動いているか確認してください。');
+      toast('取得サーバーに接続できません');
+    } else {
+      setMsg('取得に失敗しました: ' + err.message);
+      toast('取得に失敗しました');
+    }
     if(btn){ btn.disabled = false; btn.textContent = '⟳ 精密採点履歴を自動取得'; }
   }
 }
@@ -1070,7 +1139,7 @@ function renderMemo(){
               <button class="fav ${s.fav ? 'on' : ''}" data-act="fav">${s.fav ? '★' : '☆'}</button>
             </div>
           </div>
-          <button class="swipe-del" data-act="del" aria-label="${esc(s.title)}を削除"><span class="di">🗑</span>削除</button>
+          <button class="swipe-del" data-act="swipedel" aria-label="${esc(s.title)}を削除"><span class="di">🗑</span>削除</button>
         </div>
       </div>`).join('')}</div>`;
     return;
@@ -1149,15 +1218,22 @@ function renderHistory(){
 
   const canFetch = backendMode === 'local' || backendMode === 'proxy';
   const modeLabel = backendMode === 'local' ? 'ローカルサーバー' : (backendMode === 'proxy' ? '取得サーバー(proxy)' : '');
+  const proxyDown = backendMode === 'proxy' && proxyAlive === false;
   const fetchBlock = `
       ${canFetch ? `
       <div class="panel-actions" style="margin:0 0 8px">
         <button class="btn primary" id="dam-fetch">⟳ 精密採点履歴を自動取得</button>
         <span class="dam-fetch-msg" id="dam-fetch-msg"></span>
       </div>
-      <p class="note" style="margin:0 0 12px">${modeLabel}に接続済み。DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>` : ''}
+      ${proxyDown ? `
+      <p class="warnbox">
+        ⚠️ 取得サーバー(proxy)に接続できません（<code>${esc(proxyUrl)}</code>）。<br>
+        Cloudflare Worker が<b>まだデプロイされていない</b>か、URLが違う可能性があります。
+        <code>proxy-worker.js</code> を Worker に貼って Deploy し、発行URLを下の欄に保存してください（手順は <code>README.md</code> の「2-A」）。
+      </p>` : `
+      <p class="note" style="margin:0 0 12px">${modeLabel}${proxyAlive === true ? 'に接続済み' : 'を確認中'}。DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>`}` : ''}
       ${backendMode !== 'local' ? `
-      <details class="lockbox" ${backendMode === 'none' ? 'open' : ''} style="margin:0 0 12px">
+      <details class="lockbox" ${backendMode === 'none' || proxyDown ? 'open' : ''} style="margin:0 0 12px">
         <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
         <p class="note" style="margin:8px 0 8px">
           ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
@@ -1299,12 +1375,13 @@ function renderHistory(){
   if(fetchBtn) fetchBtn.onclick = () => fetchDamHistory(fetchBtn);
 
   const proxySave = document.getElementById('dam-proxy-save');
-  if(proxySave) proxySave.onclick = () => {
+  if(proxySave) proxySave.onclick = async () => {
     const v = ((document.getElementById('dam-proxy') || {}).value || '').trim().replace(/\/+$/, '');
     proxyUrl = v || DEFAULT_PROXY;
     if(v) localStorage.setItem(LS_PROXY, v); else localStorage.removeItem(LS_PROXY);
-    detectBackend();
-    toast(v ? '取得サーバーを保存しました' : '取得サーバー設定を消去しました');
+    toast(v ? '取得サーバーを保存しました。疎通を確認中…' : '取得サーバー設定を消去しました');
+    await detectBackend();                        // 保存したURLに実際に届くか確かめる
+    if(backendMode === 'proxy') toast(proxyAlive ? '取得サーバーに接続できました' : '取得サーバーに接続できませんでした');
   };
 
   document.getElementById('imp-run').onclick = runImport;
@@ -1510,6 +1587,26 @@ function addSamples(){
   ].forEach(([t,a,k,m], i) => songs.push({ id:uid(), title:t, artist:a, key:k, memo:m, fav:i<2, createdAt: now - (6-i)*day }));
   save(); render(); toast('サンプルデータを追加しました');
 }
+/* 確認なしで削除し、数秒間だけ「元に戻す」を出す（スワイプ削除用） */
+function deleteSongWithUndo(id){
+  const at = songs.findIndex(x => x.id === id);
+  if(at < 0) return;
+  const removed = songs[at];
+  songs.splice(at, 1);
+  save(); render();
+
+  toast(`「${removed.title}」を削除しました`, {
+    label: '元に戻す',
+    ms: 6000,
+    run(){
+      if(songs.some(x => x.id === removed.id)) return;   // 二重復元を防ぐ
+      songs.splice(Math.min(at, songs.length), 0, removed);   // 元の位置へ差し戻す
+      save(); render();
+      toast(`「${removed.title}」を戻しました`);
+    },
+  });
+}
+
 function openEdit(id){
   const s = songs.find(x => x.id === id); if(!s) return;
   editing = id; dKey = s.key;
@@ -1637,8 +1734,11 @@ document.getElementById('content').addEventListener('click', e => {
   const s = songs.find(x => x.id === row.dataset.id); if(!s) return;
   const act = e.target.closest('[data-act]')?.dataset.act;
 
-  // スワイプで開いている行は、削除以外をタップしたらまず閉じる
-  if(row.classList.contains('open') && act !== 'del'){ row.classList.remove('open'); return; }
+  // スワイプで出した削除は確認なし。代わりに数秒間「元に戻す」を出す
+  if(act === 'swipedel'){ deleteSongWithUndo(s.id); return; }
+
+  // スワイプで開いている行は、他をタップしたらまず閉じる
+  if(row.classList.contains('open')){ row.classList.remove('open'); return; }
 
   if(act === 'fav'){ s.fav = !s.fav; save(); render(); return; }
   if(act === 'del'){
