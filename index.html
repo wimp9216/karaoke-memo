@@ -152,6 +152,18 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .take-sub{font-size:11.5px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
 [data-hkey]{cursor:pointer}
 
+/* ---- 歌唱の一覧（曲を選んだ直後） ---- */
+.takelist{display:flex;flex-direction:column;gap:7px}
+.takeitem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.24);transition:.15s}
+.takeitem:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.22)}
+.takeitem:active{transform:scale(.99)}
+.ti-date{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ti-key{font-size:11px;font-weight:800;padding:1px 8px;border-radius:999px;background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);white-space:nowrap}
+.ti-score{margin-left:auto;font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
+.ti-arw{color:var(--muted);font-size:17px;flex:none}
+#h-body .backchip{margin-bottom:2px;align-self:flex-start}
+
 .sec{margin-top:14px}
 .sec.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .sech{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:800;margin-bottom:7px}
@@ -1738,10 +1750,20 @@ function openEdit(id){
    項目名は採点機種で違うので、既知のものだけ和名を当て、
    知らない項目もそのまま並べて取りこぼさない
    ========================================================= */
-const RADAR_AXES = [
+/* AiHeart は「聴感」を含む6角形。Ai / DX-G は聴感がないので5角形 */
+const RADAR_6 = [
   ['pitch','音程'], ['stability','安定性'], ['expressive','表現力'],
   ['hearing','聴感'], ['rhythm','リズム'], ['vibratoLongtone','ビブラート\nロングトーン'],
 ];
+const RADAR_5 = [
+  ['pitch','音程'], ['stability','安定性'], ['expressive','表現力'],
+  ['rhythm','リズム'], ['vibratoLongtone','ビブラート\nロングトーン'],
+];
+function radarAxes(mode, radar){
+  if(mode === '精密採点AiHeart') return RADAR_6;
+  if(mode === '精密採点Ai' || mode === '精密採点DX-G') return RADAR_5;
+  return radar && radar.hearing != null ? RADAR_6 : RADAR_5;   // 未知の種別だけデータで判断
+}
 const COUNT_LABELS = {
   shakuri:'しゃくり', kobushi:'こぶし', fall:'フォール', accent:'アクセント',
   hammeringOn:'ハンマリング', pullingOff:'プリング', edgeVoice:'エッジボイス',
@@ -1751,37 +1773,39 @@ const COUNT_LABELS = {
 const VIBRATO_TYPES = { 6:'ボックス形' };
 const HEART_TYPES   = { 3:'パワフル＆スマイル' };
 
-/** 6角形のレーダーチャート。本人＝実線、全国平均＝点線 */
-function radarSvg(radar, avg){
-  const R = 62, cx = 78, cy = 74;
+/** N角形のレーダーチャート。本人＝実線、全国平均＝点線 */
+function radarSvg(radar, avg, axes){
+  const N = axes.length;
+  const R = 58, cx = 90, cy = 88;
   const pt = (i, v) => {
-    const ang = -Math.PI / 2 + i * Math.PI / 3;
+    const ang = -Math.PI / 2 + i * 2 * Math.PI / N;          // 頂点をひとつ真上に置く
     const r = R * Math.max(0, Math.min(100, v ?? 0)) / 100;
     return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
   };
-  const poly = vals => RADAR_AXES.map(([k], i) => pt(i, vals?.[k]).map(n => n.toFixed(1)).join(',')).join(' ');
-  const web = [100, 75, 50, 25].map(p =>
-    `<polygon points="${RADAR_AXES.map((_, i) => pt(i, p).map(n => n.toFixed(1)).join(',')).join(' ')}" class="rw"/>`).join('');
-  const spokes = RADAR_AXES.map((_, i) => {
+  const ring = p => axes.map((_, i) => pt(i, p).map(n => n.toFixed(1)).join(',')).join(' ');
+  const poly = vals => axes.map(([k], i) => pt(i, vals?.[k]).map(n => n.toFixed(1)).join(',')).join(' ');
+
+  const web = [100, 75, 50, 25].map(p => `<polygon points="${ring(p)}" class="rw"/>`).join('');
+  const spokes = axes.map((_, i) => {
     const [x, y] = pt(i, 100);
     return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rw"/>`;
   }).join('');
-  const labels = RADAR_AXES.map(([k, label], i) => {
-    const [x, y] = pt(i, 130);
+
+  // 軸名と数値を外側にまとめて置く（重ならないよう行送りで積む）
+  const labels = axes.map(([k, label], i) => {
+    const [x, y] = pt(i, 122);
     const lines = label.split('\n');
+    const top = y - (lines.length - 1) * 4.2;
     return lines.map((ln, j) =>
-      `<text x="${x.toFixed(1)}" y="${(y + (j - (lines.length - 1) / 2) * 9).toFixed(1)}" class="rl">${esc(ln)}</text>`).join('');
-  }).join('');
-  const values = RADAR_AXES.map(([k], i) => {
-    const [x, y] = pt(i, 112);
-    return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" class="rv">${radar?.[k] ?? '—'}</text>`;
+      `<text x="${x.toFixed(1)}" y="${(top + j * 8.4).toFixed(1)}" class="rl">${esc(ln)}</text>`).join('') +
+      `<text x="${x.toFixed(1)}" y="${(top + lines.length * 8.4 + 1).toFixed(1)}" class="rv">${radar?.[k] ?? '—'}</text>`;
   }).join('');
 
-  return `<svg class="radar" viewBox="0 0 156 152" role="img" aria-label="採点レーダーチャート">
+  return `<svg class="radar" viewBox="0 0 180 182" role="img" aria-label="採点レーダーチャート（${N}項目）">
     ${web}${spokes}
     ${avg ? `<polygon points="${poly(avg)}" class="ravg"/>` : ''}
     <polygon points="${poly(radar)}" class="rme"/>
-    ${labels}${values}
+    ${labels}
   </svg>`;
 }
 
@@ -1839,17 +1863,30 @@ function keyboardRange(low, high){
     <div class="kbd-lab"><b>${noteName(low)}</b> 〜 <b>${noteName(high)}</b>（${high - low} 半音）</div>`;
 }
 
-let hDetailKey = null;
+let hDetailKey = null;   // 表示中の曲
+let hTakeId    = null;   // 選択中の歌唱。null なら歌唱の一覧を出す
+
+/** 表示対象の歌唱を新しい順に。種別で絞っている場合はその種別だけ */
+function histTakes(){
+  return histRecords()
+    .filter(r => norm(r.title) + ' ' + norm(r.artist) === hDetailKey)
+    .sort((a, b) => (b.date || 0) - (a.date || 0));
+}
 
 function openHistDetail(key){
   const agg = aggHistory().find(r => r.key === key);
   if(!agg) return;
   hDetailKey = key;
+  hTakeId = null;                       // まず歌唱の一覧から
+  renderHistDetail();
+  document.getElementById('hdlg').showModal();
+}
 
-  // その曲の歌唱を新しい順に。種別で絞っている場合はその種別だけ
-  const takes = histRecords()
-    .filter(r => norm(r.title) + ' ' + norm(r.artist) === key)
-    .sort((a, b) => (b.date || 0) - (a.date || 0));
+function renderHistDetail(){
+  const agg = aggHistory().find(r => r.key === hDetailKey);
+  if(!agg) return;
+  const takes = histTakes();
+  const take  = hTakeId != null ? takes.find(t => t.id === hTakeId) : null;
 
   document.getElementById('h-title').textContent = agg.title;
 
@@ -1862,11 +1899,37 @@ function openHistDetail(key){
       </div>
     </div>`;
 
-  document.getElementById('h-body').innerHTML =
-    head + (takes.map(takeHtml).join('') || '<p class="note">歌唱データがありません。</p>');
+  let body;
+  if(take){
+    body = `
+      <button class="backchip main" data-act="take-back">◀　歌唱の一覧へ</button>
+      ${takeHtml(take)}`;
+  } else if(takes.length){
+    body = head + `
+      <div class="sech" style="margin:2px 0 0">歌唱を選ぶ<span>日付ごとの採点結果を表示します</span></div>
+      <div class="takelist">${takes.map(t => `
+        <button class="takeitem" data-take="${esc(t.id)}">
+          <span class="ti-date">${fmtDate(t.date)}</span>
+          <span class="mchip">${esc(t.mode || '—')}</span>
+          ${t.detail?.key != null ? `<span class="ti-key">${fmtKey(t.detail.key)}</span>` : ''}
+          <span class="ti-score">${t.score != null ? t.score.toFixed(3) : '—'}</span>
+          <span class="ti-arw">›</span>
+        </button>`).join('')}</div>`;
+  } else {
+    body = head + '<p class="note">歌唱データがありません。</p>';
+  }
+
+  document.getElementById('h-body').innerHTML = body;
+  document.getElementById('h-body').scrollTop = 0;
   document.getElementById('h-tomemo').style.display = agg.inMemo ? 'none' : '';
-  document.getElementById('hdlg').showModal();
 }
+
+/* ダイアログ内の遷移（歌唱を選ぶ / 一覧へ戻る） */
+document.getElementById('h-body').addEventListener('click', e => {
+  if(e.target.closest('[data-act="take-back"]')){ hTakeId = null; renderHistDetail(); return; }
+  const item = e.target.closest('[data-take]');
+  if(item){ hTakeId = item.dataset.take; renderHistDetail(); }
+});
 
 /** 歌唱1回分のカード */
 function takeHtml(t){
@@ -1897,7 +1960,7 @@ function takeHtml(t){
   return `<div class="take">
     ${header}
     ${d.radar ? `<div class="sec radar-wrap">
-      ${radarSvg(d.radar, d.avgRadar)}
+      ${radarSvg(d.radar, d.avgRadar, radarAxes(t.mode, d.radar))}
       ${d.avgRadar ? '<div class="legend"><i class="me"></i>あなた<i class="avg"></i>全国平均</div>' : ''}
     </div>` : ''}
 
