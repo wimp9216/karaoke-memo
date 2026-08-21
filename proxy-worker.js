@@ -125,16 +125,19 @@ const RANGE_SOURCES = [
     search: (q) => [`/?s=${encodeURIComponent(q)}`],
   },
   {
+    // 曲名検索のURLが未確定。/song/?keyword= は検索を無視して新着一覧を返すため、
+    // 一致が出るまで候補を最後まで試す。確実に取り込みたいときは
+    // 楽曲ページのURLを ?rangeUrl= で直接渡せる
     name: "KeyTube", base: "https://keytube.net", path: "song/(?:detail|lyrics)/\\d+",
-    // 曲名検索のパラメータ名を確認できていないので、ありそうな形を順に試す。
-    // 記事リンクが1件でも取れた時点で「その形が正しい」と判断して打ち切る
     search: (q) => {
       const e = encodeURIComponent(q);
       return [
         `/search/bpm?keyword=${e}`,
         `/search/bpm?q=${e}`,
-        `/song/?keyword=${e}`,
+        `/song/?w=${e}`,
+        `/song/?q=${e}`,
         `/search?keyword=${e}`,
+        `/search/song?keyword=${e}`,
       ];
     },
   },
@@ -193,11 +196,10 @@ async function lookupSongRange(title, artist, debug) {
         step.matched = best ? best.url : null;
         trace.push(step);
 
-        if (!best) {
-          // 記事リンクが取れているなら検索URLの形は正しい＝この曲が無いだけ
-          if (hits.length) break;
-          continue;                             // 1件も取れないなら別の形を試す
-        }
+        // リンクが取れても、検索を無視して一覧を返すURLのことがある
+        // （KeyTube の /song/?keyword= は新着50件がそのまま返る）。
+        // 曲名に一致するものが出るまで、候補のURLを最後まで試す
+        if (!best) continue;
 
         const r = parseRangePage(await getUtf8(best.url));
         step.parsed = r;
@@ -267,19 +269,29 @@ function bestMatch(hits, title, artist) {
  * ただし「裏声最高音」を「最高音」として拾うと高すぎる値になるため、
  * 素の表記を探すときは直前に裏声が付いていないものだけを採る
  */
+/* ラベルと音名の間の区切り。サイトによって
+   「地声最低音　mid1F」「【地声最低音】mid1G」「最低音: lowG」など様々なので、
+   英数字以外を数文字ぶん読み飛ばす（音名は英字始まりなので食い込まない） */
+const LABEL_GAP = "[^A-Za-z0-9]{0,8}";
+
 function parseRangePage(html) {
   const text = decodeEntities(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ");
+  const find = (label, guardFalsetto) => {
+    const guard = guardFalsetto ? "(?<!裏声)(?<!ファルセット)" : "";
+    const m = text.match(new RegExp(guard + label + LABEL_GAP + "(" + NOTE_RE + ")"));
+    return m ? m[1].replace("♯", "#") : null;
+  };
   const pick = (...labels) => {
     for (const label of labels) {
-      const m = text.match(new RegExp("(?<!裏声)(?<!ファルセット)" + label + "[\\s　:：]*(" + NOTE_RE + ")"));
-      if (m) return m[1].replace("♯", "#");
+      const v = find(label, true);
+      if (v) return v;
     }
     return null;
   };
   return {
     low: pick("地声最低音", "最低音"),
     high: pick("地声最高音", "最高音"),
-    falsetto: (text.match(new RegExp("裏声最高音[\\s　:：]*(" + NOTE_RE + ")")) || [])[1] || null,
+    falsetto: find("裏声最高音", false),
   };
 }
 
