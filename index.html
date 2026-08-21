@@ -1999,19 +1999,23 @@ const IS_BLACK = n => [1,3,6,8,10].includes(((n % 12) + 12) % 12);
  * 鍵盤の上に音域を重ねて比較する。
  * spans: [{ label, low, high, cls }] — 複数渡すと同じ目盛りで並ぶ
  */
-function keyboardSpans(spans){
+function keyboardSpans(spans, opts){
   const list = (spans || []).filter(s => s && s.low != null && s.high != null);
   if(!list.length) return '';
+  const o = opts || {};
 
-  const from = Math.max(0, Math.min(...list.map(s => s.low))  - 3);
-  const to   = Math.min(127, Math.max(...list.map(s => s.high)) + 3);
+  // from/to を指定すると鍵盤の範囲が固定される。
+  // キーを上下させても目盛りが動かないので、変化が読み取りやすい
+  const from = Math.max(0,   (o.from != null ? o.from : Math.min(...list.map(s => s.low)))  - 3);
+  const to   = Math.min(127, (o.to   != null ? o.to   : Math.max(...list.map(s => s.high))) + 3);
   const whites = [];
   for(let n = from; n <= to; n++) if(!IS_BLACK(n)) whites.push(n);
   if(!whites.length) return '';
   const w = 100 / whites.length;
 
   // 音 → 鍵盤上のx位置(%)。黒鍵は直前の白鍵との境目に置く
-  const xOf = n => {
+  const xOf = raw => {
+    const n = Math.max(from, Math.min(to, raw));      // 範囲外は端に寄せる
     if(!IS_BLACK(n)){
       const i = whites.indexOf(n);
       return i < 0 ? 0 : i * w + w / 2;
@@ -2398,6 +2402,9 @@ function renderRangeBox(title, artist){
   const id = norm(title) + '|' + norm(artist);
 
   if(!song){
+    // キーを上下しただけで再描画すると、入力中のURLや音名が消えてしまう
+    if(box.dataset.miss === id) return;
+    box.dataset.miss = id;
     box.innerHTML = `
       <div class="rb-head">この曲の音域が未登録です</div>
       <p class="rb-note">音域研究所 / 音域の沼 / KeyTube から取り寄せると、あなたの声域
@@ -2430,20 +2437,42 @@ function renderRangeBox(title, artist){
   const srcLabel = song.src === 'manual'
     ? (song.url ? `${esc(song.source || '外部サイト')}より` : '手入力')
     : `歌唱${song.takes}回ぶんの実測（原曲キー換算）`;
+
+  // いま設定しているキーで、実際にどこまで届くか
+  const curLow = song.low + qaKey, curHigh = song.high + qaKey;
+  const overHigh = Math.max(0, curHigh - me.comfortHigh);
+  const overLow  = Math.max(0, me.comfortLow - curLow);
+  const fitsNow  = !overHigh && !overLow;
+
+  let verdict;
+  if(fitsNow){
+    verdict = `${fmtKey(qaKey)} なら声域に収まります`;
+  } else {
+    const parts = [];
+    if(overHigh) parts.push(`高音が ${overHigh} 半音たりません`);
+    if(overLow)  parts.push(`低音が ${overLow} 半音たりません`);
+    verdict = `${fmtKey(qaKey)} では${parts.join('／')}`;
+    if(ra && ra.fits && ra.key !== qaKey) verdict += `　→ ${fmtKey(ra.key)} なら収まります`;
+    else if(ra && !ra.fits) verdict += `（曲の音域が ${ra.over} 半音広く、どのキーでも収まりません）`;
+  }
+
+  // 鍵盤の範囲はキーに依存させず固定する（上下しても目盛りが動かない）
+  const from = Math.min(song.low, me.comfortLow) - 8;
+  const to   = Math.max(song.high, me.comfortHigh) + 8;
+
+  delete box.dataset.miss;
   box.innerHTML = `
     <div class="rb-head">音域の比較<span>${srcLabel}${song.url ? ` <a href="${esc(song.url)}" target="_blank" rel="noopener">出典</a>` : ''}</span></div>
     ${keyboardSpans([
       { label:'曲（原曲キー）', low:song.low, high:song.high, cls:'song' },
       { label:'あなたの声域',   low:me.comfortLow, high:me.comfortHigh, cls:'me' },
-      ra ? { label:`${fmtKey(ra.key)} にすると`, low:song.low + ra.key, high:song.high + ra.key,
-             cls: ra.fits ? 'fit' : 'over' } : null,
-    ])}
-    <div class="rb-verdict ${ra && ra.fits ? 'ok' : 'ng'}">
-      ${ra ? (ra.fits
-        ? `${fmtKey(ra.key)} なら声域に収まります`
-        : `曲の音域が ${ra.over} 半音ぶん広く、どのキーでも収まりません（${fmtKey(ra.key)} が最も無理が少ない）`)
-        : ''}
-    </div>
+      { label:`キー ${fmtKey(qaKey)}`, low:curLow, high:curHigh, cls: fitsNow ? 'fit' : 'over' },
+    ], { from, to })}
+    <div class="rb-verdict ${fitsNow ? 'ok' : 'ng'}">${esc(verdict)}</div>
+    ${ra && ra.fits && ra.key !== qaKey
+      ? `<div class="panel-actions" style="margin:8px 0 0">
+           <button type="button" class="btn" id="qa-rapply" data-k="${ra.key}">${fmtKey(ra.key)} にする</button>
+         </div>` : ''}
     ${song.falsetto != null ? `<div class="rb-foot">裏声最高音 ${noteName(song.falsetto)}（キー計算には含めていません）</div>` : ''}`;
   box.hidden = false;
 }
@@ -2487,6 +2516,9 @@ async function lookupSongRange(id, btn, pageUrl){
 
 /* 曲の音域（検索 / URL指定 / 手入力） */
 document.getElementById('qa-range').addEventListener('click', e => {
+  const apply = e.target.closest('#qa-rapply');
+  if(apply){ setQaKey(Number(apply.dataset.k)); keyTouched = true; updateKeyHint(); return; }
+
   const look = e.target.closest('#qa-rlookup');
   if(look){ lookupSongRange(look.dataset.id, look); return; }
 
