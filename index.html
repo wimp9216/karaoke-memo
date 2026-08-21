@@ -177,12 +177,12 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 
 /* レーダーチャート */
 .radar-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
-.radar{width:100%;max-width:280px;height:auto}
+.radar{width:100%;max-width:340px;height:auto}
 .radar .rw{fill:none;stroke:rgba(255,255,255,.13);stroke-width:1}
 .radar .rme{fill:rgba(255,61,129,.3);stroke:var(--accent);stroke-width:2}
 .radar .ravg{fill:none;stroke:rgba(255,255,255,.5);stroke-width:1.4;stroke-dasharray:3 3}
-.radar .rl{fill:#9a9aae;font-size:8px;font-weight:700;text-anchor:middle}
-.radar .rv{fill:#f3f3f7;font-size:9px;font-weight:800;text-anchor:middle}
+.radar .rl{fill:#9a9aae;font-size:8.5px;font-weight:700}
+.radar .rv{fill:#f3f3f7;font-size:10.5px;font-weight:800}
 .legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
 .legend i{width:14px;height:0;border-top:2px solid var(--accent);display:inline-block}
 .legend i.avg{border-top:2px dashed rgba(255,255,255,.5);margin-left:10px}
@@ -232,6 +232,24 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .keyhint button{flex:none;padding:4px 11px;border-radius:999px;border:1px solid rgba(61,220,151,.4);color:var(--ok);font-size:11px;font-weight:800}
 .keyhint button:hover{background:rgba(61,220,151,.13)}
 .keyhint .why{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- 曲の音域とのすり合わせ ---- */
+.rangebox{margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.28)}
+.rb-head{display:flex;align-items:baseline;gap:8px;font-size:11px;font-weight:800;margin-bottom:6px}
+.rb-head span{font-size:10px;font-weight:600;color:var(--muted)}
+.rb-note{margin:0 0 8px;font-size:10.5px;line-height:1.7;color:var(--muted)}
+.rb-rows{display:flex;flex-direction:column;gap:4px}
+.rb-rows > div{display:flex;align-items:baseline;gap:8px;font-size:11.5px}
+.rb-rows span{flex:none;width:82px;color:var(--muted);font-weight:700}
+.rb-rows b{font-variant-numeric:tabular-nums;font-size:12.5px}
+.rb-rows i{margin-left:auto;font-style:normal;font-size:10.5px;color:var(--muted)}
+.rb-rows .ok b,.rb-rows .ok i{color:var(--ok)}
+.rb-rows .ng b,.rb-rows .ng i{color:#ff8fb5}
+.rb-in{display:flex;gap:6px;flex-wrap:wrap}
+.rb-in input{flex:1 1 110px;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.3);outline:none;font-size:12px}
+.rb-in input:focus{border-color:var(--accent2)}
+.rb-in button{flex:none;padding:7px 14px;border-radius:8px;font-size:11.5px;font-weight:800;background:rgba(139,92,246,.3);border:1px solid rgba(139,92,246,.5)}
+.rb-msg{display:block;margin-top:6px;font-size:10.5px;color:#ff8fb5}
 
 /* ---- 取得バー（連携済みのとき常に上に出る） ---- */
 .syncbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
@@ -534,6 +552,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
             <span class="why" id="qa-keywhy"></span>
             <button type="button" id="qa-keyapply"></button>
           </div>
+          <div class="rangebox" id="qa-range" hidden></div>
         </div>
         <div class="group" style="flex:1.2 1 140px">
           <span class="lbl">メモ</span>
@@ -603,6 +622,7 @@ const LS_DAMENC = 'karaokeMemo.damEnc.v1';     // 廃止: 旧パスワード保�
 const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker等)のURL
 const LS_HMODE  = 'karaokeMemo.histMode.v1';   // 歌唱履歴で選んでいる採点種別
 const LS_FETCH  = 'karaokeMemo.lastFetch.v1';  // 最後に自動取得した時刻
+const LS_RANGES = 'karaokeMemo.songRanges.v1'; // 手入力した曲の音域 { "曲|歌手": {high,low} }
 const FETCH_LABEL = '⟳ 精密採点履歴を取得';
 // ▼ 共有Worker(Cloudflare)のURL。設定済みなので配布相手は設定不要でボタン取得できます。
 //   変更する場合はここを差し替えてください（末尾スラッシュ無し）。
@@ -621,6 +641,7 @@ proxyUrl = proxyUrl || DEFAULT_PROXY;
 
 let dam = load(LS_DAM, null);          // 連携中のアカウント { damtomoId, cardNo } or null
 let lastFetch = load(LS_FETCH, null);  // 最後に自動取得した時刻(ms)
+let songRanges = load(LS_RANGES, {});  // 手入力した曲の音域
 // パスワード保護は廃止。復号できない残骸を持ち続けても意味がないので捨てる
 if(localStorage.getItem(LS_DAMENC)) localStorage.removeItem(LS_DAMENC);
 
@@ -652,6 +673,7 @@ function save(){
   const items = [
     [LS_DAM,    dam],           // アカウントは最優先（消えると再登録が必要になる）
     [LS_ONLINE, online],
+    [LS_RANGES, songRanges],
     [LS_SONGS,  songs],
     [LS_HIST,   history],       // いちばん重い。溢れるならここ
   ];
@@ -1033,6 +1055,97 @@ function analyzeVoice(){
   };
 }
 
+/* =========================================================
+   音域どうしを突き合わせてキーを決める
+   ・自分の声域   … 歌唱履歴の singingRange の分布から
+   ・曲の音域     … 歌唱履歴（原曲キーに戻す）／手入力
+   ========================================================= */
+function percentile(nums, p){
+  if(!nums.length) return null;
+  const a = [...nums].sort((x, y) => x - y);
+  return a[Math.max(0, Math.min(a.length - 1, Math.round((a.length - 1) * p)))];
+}
+
+/**
+ * 自分が実際に出している音の分布。
+ * 一度きりの最高音に引っ張られないよう、上下1割を外した値も持つ
+ */
+function myVocalRange(){
+  const highs = [], lows = [];
+  for(const r of history){
+    const g = r.detail && r.detail.range;
+    if(!g) continue;
+    if(g.high != null) highs.push(g.high);
+    if(g.low  != null) lows.push(g.low);
+  }
+  return {
+    n: highs.length,
+    max: highs.length ? Math.max(...highs) : null,
+    min: lows.length  ? Math.min(...lows)  : null,
+    comfortHigh: percentile(highs, 0.9),   // 無理なく届く上限
+    comfortLow:  percentile(lows, 0.1),
+  };
+}
+
+/**
+ * 曲ごとの「原曲キーでの音域」。
+ * DAMが記録するのは歌ったときの音域なので、そのときのキー分を戻す
+ */
+function songRangeIndex(){
+  const map = new Map();
+  for(const r of history){
+    const d = r.detail;
+    if(!d || !d.range || d.range.high == null || d.range.low == null) continue;
+    const k = d.key || 0;
+    const id = norm(r.title) + '|' + norm(r.artist);
+    let e = map.get(id);
+    if(!e){ e = { title:r.title, artist:r.artist, highs:[], lows:[] }; map.set(id, e); }
+    e.highs.push(d.range.high - k);
+    e.lows.push(d.range.low - k);
+  }
+  for(const e of map.values()){
+    // 途中で歌うのをやめた回は音域が狭く出るので、広いほうを採る
+    e.high = Math.max(...e.highs);
+    e.low  = Math.min(...e.lows);
+    e.takes = e.highs.length;
+    e.src = 'history';
+  }
+  return map;
+}
+let _rangeIdx = null;
+function songRangeOf(title, artist){
+  const id = norm(title) + '|' + norm(artist);
+  const manual = songRanges[id];
+  if(manual) return { ...manual, src:'manual' };
+  if(!_rangeIdx) _rangeIdx = songRangeIndex();
+  return _rangeIdx.get(id) || null;
+}
+function invalidateRangeIndex(){ _rangeIdx = null; }
+
+/**
+ * 曲の音域と自分の声域を突き合わせて、収まるキーを求める。
+ * 上げ下げの余地を [lo, hi] で出し、その中で0に最も近い値を選ぶ
+ */
+function keyFromRange(title, artist){
+  const song = songRangeOf(title, artist);
+  const me = myVocalRange();
+  if(!song || me.comfortHigh == null || me.comfortLow == null) return null;
+
+  const lo = me.comfortLow  - song.low;    // これより下げると低音が出ない
+  const hi = me.comfortHigh - song.high;   // これより上げると高音が出ない
+  const fits = lo <= hi;
+  let key = fits ? Math.max(lo, Math.min(hi, 0)) : Math.round((lo + hi) / 2);
+  key = Math.max(-12, Math.min(12, Math.round(key)));
+
+  return {
+    key, fits, song, me,
+    width: song.high - song.low,
+    myWidth: me.comfortHigh - me.comfortLow,
+    // 収まらない＝曲の音域が自分の声域より広い
+    over: fits ? 0 : (song.high - song.low) - (me.comfortHigh - me.comfortLow),
+  };
+}
+
 /**
  * 新しくメモを作るときの推奨キー。
  * 同じ曲 → 同じアーティスト → 全体、の順に根拠の強いものを使う
@@ -1051,6 +1164,19 @@ function suggestKeyFor(title, artist){
       key: best.detail.key,
       reason: `この曲は ${fmtKey(best.detail.key)} で歌って${best.score != null ? ` ${best.score.toFixed(3)}点` : 'います'}`,
       strong: true,
+    };
+  }
+
+  // 曲の音域が分かっていれば、自分の声域と突き合わせて算出する
+  const ra = keyFromRange(title, artist);
+  if(ra){
+    return {
+      key: ra.key,
+      reason: ra.fits
+        ? `曲の音域 ${noteName(ra.song.low)}〜${noteName(ra.song.high)} をあなたの声域に合わせると ${fmtKey(ra.key)}`
+        : `曲の音域が ${ra.over} 半音ぶん広く、どのキーでも収まりません（${fmtKey(ra.key)} が最も無理が少ない）`,
+      strong: ra.fits,
+      range: ra,
     };
   }
 
@@ -1174,6 +1300,7 @@ async function fetchDamHistory(btn){
     }
     lastFetch = Date.now();
     try{ localStorage.setItem(LS_FETCH, JSON.stringify(lastFetch)); }catch{}
+    invalidateRangeIndex();          // 履歴が増えたので曲の音域を作り直す
     save(); render();
     const parts = [];
     if(added)    parts.push(`${added} 件を取り込みました`);
@@ -1625,7 +1752,7 @@ function renderHistory(){
   if(histClear) histClear.onclick = () => {
     if(!history.length) return;
     if(confirm(`取り込んだ歌唱履歴 ${history.length} 件をすべて削除します。よろしいですか？（マイメモは消えません）`)){
-      history = []; save(); render(); toast('履歴を削除しました');
+      history = []; invalidateRangeIndex(); save(); render(); toast('履歴を削除しました');
     }
   };
 
@@ -1776,32 +1903,46 @@ const HEART_TYPES   = { 3:'パワフル＆スマイル' };
 /** N角形のレーダーチャート。本人＝実線、全国平均＝点線 */
 function radarSvg(radar, avg, axes){
   const N = axes.length;
-  const R = 58, cx = 90, cy = 88;
-  const pt = (i, v) => {
-    const ang = -Math.PI / 2 + i * 2 * Math.PI / N;          // 頂点をひとつ真上に置く
-    const r = R * Math.max(0, Math.min(100, v ?? 0)) / 100;
+  const R = 50;
+  // 図形の外にラベルを置くので、その分の余白を左右に広く取る
+  const cx = 108, cy = 88, W = 216, H = 176;
+  const LR = R * 1.34;                    // ラベルを置く半径（図形より外）
+  const LH = 9.4;                         // 行送り
+
+  const at = (i, r) => {
+    const ang = -Math.PI / 2 + i * 2 * Math.PI / N;   // 頂点をひとつ真上に置く
     return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
   };
+  const pt = (i, v) => at(i, R * Math.max(0, Math.min(100, v ?? 0)) / 100);
   const ring = p => axes.map((_, i) => pt(i, p).map(n => n.toFixed(1)).join(',')).join(' ');
   const poly = vals => axes.map(([k], i) => pt(i, vals?.[k]).map(n => n.toFixed(1)).join(',')).join(' ');
 
   const web = [100, 75, 50, 25].map(p => `<polygon points="${ring(p)}" class="rw"/>`).join('');
   const spokes = axes.map((_, i) => {
-    const [x, y] = pt(i, 100);
+    const [x, y] = at(i, R);
     return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rw"/>`;
   }).join('');
 
-  // 軸名と数値を外側にまとめて置く（重ならないよう行送りで積む）
   const labels = axes.map(([k, label], i) => {
-    const [x, y] = pt(i, 122);
+    const [x, y] = at(i, LR);
     const lines = label.split('\n');
-    const top = y - (lines.length - 1) * 4.2;
+    const rows = lines.length + 1;                    // 軸名 + 数値
+
+    // 図形に被らないよう、軸の向きに応じて外側へ逃がす
+    const anchor = x > cx + 2 ? 'start' : (x < cx - 2 ? 'end' : 'middle');
+    const dx = x > cx + 2 ? 4 : (x < cx - 2 ? -4 : 0);
+    let top;
+    if(y < cy - 4)      top = y - (rows - 1) * LH - 2;  // 上側の軸はブロックを上へ
+    else if(y > cy + 4) top = y + LH;                   // 下側の軸は下へ
+    else                top = y - (rows - 1) * LH / 2 + 3;
+
+    const tx = (x + dx).toFixed(1);
     return lines.map((ln, j) =>
-      `<text x="${x.toFixed(1)}" y="${(top + j * 8.4).toFixed(1)}" class="rl">${esc(ln)}</text>`).join('') +
-      `<text x="${x.toFixed(1)}" y="${(top + lines.length * 8.4 + 1).toFixed(1)}" class="rv">${radar?.[k] ?? '—'}</text>`;
+        `<text x="${tx}" y="${(top + j * LH).toFixed(1)}" text-anchor="${anchor}" class="rl">${esc(ln)}</text>`).join('') +
+      `<text x="${tx}" y="${(top + lines.length * LH).toFixed(1)}" text-anchor="${anchor}" class="rv">${radar?.[k] ?? '—'}</text>`;
   }).join('');
 
-  return `<svg class="radar" viewBox="0 0 180 182" role="img" aria-label="採点レーダーチャート（${N}項目）">
+  return `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="採点レーダーチャート（${N}項目）">
     ${web}${spokes}
     ${avg ? `<polygon points="${poly(avg)}" class="ravg"/>` : ''}
     <polygon points="${poly(radar)}" class="rme"/>
@@ -2183,20 +2324,80 @@ function updateKeyHint(){
   const hint = document.getElementById('qa-keyhint');
   const title  = document.getElementById('qa-title').value.trim();
   const artist = document.getElementById('qa-artist').value.trim();
-  if(!title && !artist){ hint.hidden = true; return; }
+  if(!title && !artist){ hint.hidden = true; renderRangeBox(null, ''); return; }
 
   const sug = suggestKeyFor(title, artist);
-  if(!sug.reason || sug.key === qaKey){ hint.hidden = true; return; }
+  renderRangeBox(title, artist);
 
-  document.getElementById('qa-keywhy').textContent = sug.reason;
-  const btn = document.getElementById('qa-keyapply');
-  btn.textContent = `${fmtKey(sug.key)} にする`;
-  btn.onclick = () => { setQaKey(sug.key); keyTouched = true; updateKeyHint(); };
-  hint.hidden = false;
+  if(!sug.reason || sug.key === qaKey){ hint.hidden = true; }
+  else {
+    document.getElementById('qa-keywhy').textContent = sug.reason;
+    const btn = document.getElementById('qa-keyapply');
+    btn.textContent = `${fmtKey(sug.key)} にする`;
+    btn.onclick = () => { setQaKey(sug.key); keyTouched = true; updateKeyHint(); };
+    hint.hidden = false;
+  }
 
   // まだキーに触れていないうちは、根拠が強いものだけ自動で入れる
-  if(!keyTouched && sug.strong){ setQaKey(sug.key); hint.hidden = true; }
+  if(!keyTouched && sug.strong && sug.key !== qaKey){ setQaKey(sug.key); hint.hidden = true; }
 }
+
+/** 曲の音域と自分の声域を並べて見せる。音域が未知なら手入力を促す */
+function renderRangeBox(title, artist){
+  const box = document.getElementById('qa-range');
+  if(!title){ box.hidden = true; return; }
+
+  const me = myVocalRange();
+  if(me.comfortHigh == null){        // 声域が分からなければ比較しようがない
+    box.hidden = true; return;
+  }
+  const song = songRangeOf(title, artist);
+  const id = norm(title) + '|' + norm(artist);
+
+  if(!song){
+    box.innerHTML = `
+      <div class="rb-head">この曲の音域が未登録です</div>
+      <p class="rb-note">音域サイトなどで調べた最高音・最低音を入れると、あなたの声域
+        （${noteName(me.comfortLow)}〜${noteName(me.comfortHigh)}）に合わせたキーを計算します。</p>
+      <div class="rb-in">
+        <input type="text" id="qa-rlow"  placeholder="最低音 例）mid1D#" autocomplete="off" spellcheck="false">
+        <input type="text" id="qa-rhigh" placeholder="最高音 例）hiA" autocomplete="off" spellcheck="false">
+        <button type="button" id="qa-rsave" data-id="${esc(id)}">登録</button>
+      </div>
+      <span class="rb-msg" id="qa-rmsg"></span>`;
+    box.hidden = false;
+    return;
+  }
+
+  const ra = keyFromRange(title, artist);
+  const srcLabel = song.src === 'manual' ? '手入力'
+    : `歌唱${song.takes}回ぶんの実測（原曲キー換算）`;
+  box.innerHTML = `
+    <div class="rb-head">音域の比較<span>${esc(srcLabel)}</span></div>
+    <div class="rb-rows">
+      <div><span>曲</span><b>${noteName(song.low)} 〜 ${noteName(song.high)}</b><i>${song.high - song.low}半音</i></div>
+      <div><span>あなた</span><b>${noteName(me.comfortLow)} 〜 ${noteName(me.comfortHigh)}</b><i>${me.comfortHigh - me.comfortLow}半音</i></div>
+      ${ra ? `<div class="${ra.fits ? 'ok' : 'ng'}"><span>${fmtKey(ra.key)}にすると</span><b>${noteName(song.low + ra.key)} 〜 ${noteName(song.high + ra.key)}</b>
+        <i>${ra.fits ? '収まります' : `${ra.over}半音はみ出す`}</i></div>` : ''}
+    </div>`;
+  box.hidden = false;
+}
+
+/* 曲の音域の手入力 */
+document.getElementById('qa-range').addEventListener('click', e => {
+  const btn = e.target.closest('#qa-rsave'); if(!btn) return;
+  const msg = document.getElementById('qa-rmsg');
+  const low  = parseNote(document.getElementById('qa-rlow').value);
+  const high = parseNote(document.getElementById('qa-rhigh').value);
+  if(low == null || high == null){
+    msg.textContent = '音名を読み取れません（例：mid1D# / hiA / lowG）'; return;
+  }
+  if(low >= high){ msg.textContent = '最低音と最高音が逆のようです'; return; }
+  songRanges[btn.dataset.id] = { high, low };
+  save();
+  updateKeyHint();
+  toast('曲の音域を登録しました');
+});
 
 ['qa-title','qa-artist'].forEach(id => {
   const el = document.getElementById(id);
@@ -2292,6 +2493,7 @@ document.getElementById('file-import').onchange = e => {
       if(!Array.isArray(d.songs)) throw new Error('形式が違います');
       if(!confirm('現在のデータを読み込んだ内容で置き換えます。よろしいですか？')) return;
       songs = d.songs; history = Array.isArray(d.history) ? d.history : [];
+      invalidateRangeIndex();
       save(); render(); toast('読み込みました');
     }catch(err){ alert('読み込めませんでした: ' + err.message); }
   };
