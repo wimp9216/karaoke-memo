@@ -113,8 +113,28 @@ export default {
    ・違う曲のデータを掴むと害が大きいので、曲名が一致しない候補は採らない
    ========================================================= */
 const RANGE_SOURCES = [
-  { name: "音域研究所",     base: "https://onikikenkyujo.com", path: "\\d{4}/\\d{2}/\\d{2}/.+" },
-  { name: "J-POP 音域の沼", base: "https://vocal-range.com",   path: "archives/.+\\.html" },
+  {
+    name: "音域研究所", base: "https://onikikenkyujo.com", path: "\\d{4}/\\d{2}/\\d{2}/.+",
+    search: (q) => [`/?s=${encodeURIComponent(q)}`],
+  },
+  {
+    name: "J-POP 音域の沼", base: "https://vocal-range.com", path: "archives/.+\\.html",
+    search: (q) => [`/?s=${encodeURIComponent(q)}`],
+  },
+  {
+    name: "KeyTube", base: "https://keytube.net", path: "song/(?:detail|lyrics)/\\d+",
+    // 曲名検索のパラメータ名を確認できていないので、ありそうな形を順に試す。
+    // 記事リンクが1件でも取れた時点で「その形が正しい」と判断して打ち切る
+    search: (q) => {
+      const e = encodeURIComponent(q);
+      return [
+        `/search/bpm?keyword=${e}`,
+        `/search/bpm?q=${e}`,
+        `/song/?keyword=${e}`,
+        `/search?keyword=${e}`,
+      ];
+    },
+  },
 ];
 const NOTE_RE = "(?:hihi|hi|mid1|mid2|lowlow|low)[A-G](?:#|♯)?";
 
@@ -134,27 +154,35 @@ async function lookupSongRange(title, artist, debug) {
     // まず曲名＋アーティスト。表記違いで空振りしたら曲名だけで引き直す
     const queries = artist ? [`${title} ${artist}`, title] : [title];
     for (const q of queries) {
-      const step = { source: src.name, query: q };
-      let hits;
-      try {
-        const html = await getUtf8(`${src.base}/?s=${encodeURIComponent(q)}`);
-        step.htmlLength = html.length;
-        hits = pickResults(html, src);
-      } catch (e) {
-        step.error = e.message; trace.push(step); continue;   // 1サイト落ちても他を試す
-      }
-      step.hits = hits.slice(0, 8).map((h) => ({ url: h.url, match: h.match }));
-      const best = bestMatch(hits, title, artist);
-      step.matched = best ? best.url : null;
-      trace.push(step);
-      if (!best) continue;
+      for (const path of src.search(q)) {
+        const step = { source: src.name, query: q, path };
+        let hits;
+        try {
+          const html = await getUtf8(src.base + path);
+          step.htmlLength = html.length;
+          hits = pickResults(html, src);
+        } catch (e) {
+          step.error = e.message; trace.push(step); continue;   // 落ちたら次の形を試す
+        }
+        step.hitCount = hits.length;
+        step.hits = hits.slice(0, 6).map((h) => ({ url: h.url, match: h.match }));
 
-      const page = await getUtf8(best.url);
-      const r = parseRangePage(page);
-      step.parsed = r;
-      if (!r.high || !r.low) continue;          // 読めなければ次の候補へ
-      const out = { found: true, pageTitle: best.text, url: best.url, source: src.name, ...r };
-      return debug ? { ...out, trace } : out;
+        const best = bestMatch(hits, title, artist);
+        step.matched = best ? best.url : null;
+        trace.push(step);
+
+        if (!best) {
+          // 記事リンクが取れているなら検索URLの形は正しい＝この曲が無いだけ
+          if (hits.length) break;
+          continue;                             // 1件も取れないなら別の形を試す
+        }
+
+        const r = parseRangePage(await getUtf8(best.url));
+        step.parsed = r;
+        if (!r.high || !r.low) break;           // 読めなければ次のクエリ／サイトへ
+        const out = { found: true, pageTitle: best.text, url: best.url, source: src.name, ...r };
+        return debug ? { ...out, trace } : out;
+      }
     }
   }
   const out = { found: false, message: `該当する曲が見つかりませんでした（${tried.join(" / ")}を確認）。` };
@@ -210,16 +238,26 @@ function bestMatch(hits, title, artist) {
   return best;
 }
 
+/**
+ * 記事から音域を読む。
+ * 「地声最低音」と書くサイトと、単に「最低音」と書くサイトがあるので、
+ * 地声の表記を優先しつつ、無ければ素の表記にも当たる。
+ * ただし「裏声最高音」を「最高音」として拾うと高すぎる値になるため、
+ * 素の表記を探すときは直前に裏声が付いていないものだけを採る
+ */
 function parseRangePage(html) {
   const text = decodeEntities(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ");
-  const pick = (label) => {
-    const m = text.match(new RegExp(label + "[\\s　]*(" + NOTE_RE + ")"));
-    return m ? m[1].replace("♯", "#") : null;
+  const pick = (...labels) => {
+    for (const label of labels) {
+      const m = text.match(new RegExp("(?<!裏声)(?<!ファルセット)" + label + "[\\s　:：]*(" + NOTE_RE + ")"));
+      if (m) return m[1].replace("♯", "#");
+    }
+    return null;
   };
   return {
-    low: pick("地声最低音"),
-    high: pick("地声最高音"),
-    falsetto: pick("裏声最高音"),      // キー計算には使わないが参考として返す
+    low: pick("地声最低音", "最低音"),
+    high: pick("地声最高音", "最高音"),
+    falsetto: (text.match(new RegExp("裏声最高音[\\s　:：]*(" + NOTE_RE + ")")) || [])[1] || null,
   };
 }
 
