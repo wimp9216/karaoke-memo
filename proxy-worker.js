@@ -268,8 +268,7 @@ function parseScoringPage(xml, type, damtomoId) {
       sungAt: formatDate(attr("scoringDateTime")),
       mode: type.name,
       damtomoId,
-      // 採点の内訳（音程・表現力・音域など）。項目は機種で違うのでそのまま渡す
-      detail: allAttrs(block),
+      detail: buildDetail(block),
     });
   }
   return records;
@@ -282,6 +281,110 @@ function allAttrs(block) {
     if (m[2] !== "") out[m[1]] = m[2];
   }
   return out;
+}
+
+/* 端末のlocalStorageに何百件も貯まるので、生の属性をそのまま持たず整形して詰める。
+   ・24区間のグラフは配列に畳む
+   ・採点機種ごとに項目が違うので、無いものは省く
+   ・拾い漏らした項目は extra に残して取りこぼさない */
+const CONSUMED = new RegExp(
+  "^(" +
+  "songName|artistName|contentsName|scoringDateTime|damtomoId|cdmCardNo|edyId|damserial" +
+  "|dataKind|dataSize|scoringEngineVersionNumber|spare\\d+|.*Id|.*No\\d*|entryCount|topRecordNumber" +
+  "|requestNoTray|requestNoChapter|totalScore|lastPerformKey|requestNo" +
+  "|radarChart\\w+|nationalAverage\\w+|maxTotalPoints|rankingRank|rankingRankAll" +
+  "|singingRange\\w+|vocalRange\\w+|intonation|timing" +
+  "|\\w+Count|longtoneSkill|vibratoSkill|vibratoType|vibratoTotalSecond" +
+  "|hearingType|hearingPoint|aiSensitivityBonus|scoreType|fadeout|favorite|medalKind|intonationType|intonationScore" +
+  "|intervalGraph\\w+|hearingGraph\\w+" +
+  ")$"
+);
+
+function buildDetail(block) {
+  const a = allAttrs(block);
+  const n = (k) => (a[k] != null && a[k] !== "" ? Number(a[k]) : null);
+  const d = {};
+  const put = (k, v) => { if (v != null && !(typeof v === "number" && isNaN(v))) d[k] = v; };
+
+  put("key", n("lastPerformKey"));            // 実際に歌ったキー
+  put("requestNo", a.requestNo);
+
+  // 6軸レーダー（本人 / 全国平均）
+  const radar = pick(n, {
+    pitch: "radarChartPitch", stability: "radarChartStability", expressive: "radarChartExpressive",
+    vibratoLongtone: "radarChartVibratoLongtone", rhythm: "radarChartRhythm", hearing: "radarChartHearing",
+  });
+  const avgRadar = pick(n, {
+    pitch: "nationalAveragePitch", stability: "nationalAverageStability", expressive: "nationalAverageExpression",
+    vibratoLongtone: "nationalAverageVibratoAndLongtone", rhythm: "nationalAverageRhythm", hearing: "nationalAverageHearing",
+  });
+  if (Object.keys(radar).length) put("radar", radar);
+  if (Object.keys(avgRadar).length) put("avgRadar", avgRadar);
+
+  put("nationalAvg", n("nationalAverageTotalPoints") != null ? n("nationalAverageTotalPoints") / 1000 : null);
+  put("maxScore", n("maxTotalPoints") != null ? n("maxTotalPoints") / 1000 : null);
+  put("rank", n("rankingRank"));
+  put("rankAll", n("rankingRankAll"));
+
+  // 声域（MIDIノート番号）
+  const high = n("singingRangeHighest") ?? n("vocalRangeHighest");
+  const low  = n("singingRangeLowest")  ?? n("vocalRangeLowest");
+  if (high != null || low != null) put("range", { high, low });
+
+  put("intonation", n("intonation"));         // 抑揚
+  put("timing", n("timing"));                 // タメ⇔走り
+
+  const counts = pick(n, {
+    shakuri: "shakuriCount", kobushi: "kobushiCount", fall: "fallCount", accent: "accentCount",
+    hammeringOn: "hammeringOnCount", pullingOff: "pullingOffCount",
+    edgeVoice: "edgeVoiceCount", hiccup: "hiccupCount", flydown: "flydownCount",
+  });
+  if (Object.keys(counts).length) put("counts", counts);
+
+  const longtone = pick(n, { skill: "longtoneSkill", count: "longtoneCount" });
+  if (Object.keys(longtone).length) put("longtone", longtone);
+
+  const vib = pick(n, { skill: "vibratoSkill", type: "vibratoType", count: "vibratoCount" });
+  if (n("vibratoTotalSecond") != null) vib.totalSec = n("vibratoTotalSecond") / 10;
+  if (Object.keys(vib).length) put("vibrato", vib);
+
+  put("hearingType", n("hearingType"));
+  put("commentNo", n("analysisReportCommentNo"));
+
+  put("pitchGraph", sections(a, "intervalGraphPointsSection", Number));
+  put("pitchIndex", sections(a, "intervalGraphIndexSection", sectionKind));
+  put("hearGraph",  sections(a, "hearingGraphPtSection", Number));
+  put("hearIndex",  sections(a, "hearingGraphIxSection", sectionKind));
+
+  // 機種ごとの未知の項目を拾っておく（区間グラフのような嵩張るものは除く）
+  const extra = {};
+  for (const [k, v] of Object.entries(a)) if (!CONSUMED.test(k)) extra[k] = v;
+  if (Object.keys(extra).length) put("extra", extra);
+
+  return Object.keys(d).length ? d : null;
+}
+
+function pick(n, map) {
+  const out = {};
+  for (const [to, from] of Object.entries(map)) { const v = n(from); if (v != null) out[to] = v; }
+  return out;
+}
+
+/** 区間の種別 "B'00"(区間なし) / "B'01"(通常) / "B'10"(サビ) を 0/1/2 に畳む */
+function sectionKind(v) {
+  const m = String(v).match(/B'(\d+)/);
+  if (!m) return 0;
+  return m[1] === "10" ? 2 : (m[1] === "00" ? 0 : 1);
+}
+
+/** xxxSection01..24 を配列に畳む。全区間が空なら null */
+function sections(a, prefix, cast) {
+  const out = [];
+  for (let i = 1; i <= 24; i++) {
+    const v = a[prefix + String(i).padStart(2, "0")];
+    out.push(v == null || v === "" ? null : cast(v));
+  }
+  return out.some((v) => v != null) ? out : null;
 }
 
 function formatDate(dt) {

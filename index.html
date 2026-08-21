@@ -142,16 +142,73 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .hd-head .thumb{width:48px;height:48px;border-radius:9px;font-size:18px}
 .hd-artist{font-size:13.5px;color:var(--muted);font-weight:600}
 .hd-sum{font-size:12px;color:var(--muted);margin-top:3px}
-.take{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:rgba(0,0,0,.22)}
+.take{border:1px solid var(--line);border-radius:11px;padding:13px;background:rgba(0,0,0,.24)}
 .take-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .take-date{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-.take-score{margin-left:auto;font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
-.take-sub{font-size:11.5px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
-.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:8px;margin-top:11px}
-.dcell{background:rgba(255,255,255,.05);border-radius:8px;padding:7px 9px;min-width:0}
-.dcell span{display:block;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dcell b{font-size:14px;font-variant-numeric:tabular-nums;word-break:break-all}
+.take-score{margin-left:auto;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
+.take-score small{font-size:12px;font-weight:800;margin-left:2px}
+.take-meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.take-meta .keychip{color:var(--text);font-weight:800;padding:1px 9px;border-radius:999px;background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4)}
+.take-sub{font-size:11.5px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
 [data-hkey]{cursor:pointer}
+
+.sec{margin-top:14px}
+.sec.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sech{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:800;margin-bottom:7px}
+.sech b{font-size:15px;color:var(--accent);font-variant-numeric:tabular-nums}
+.sech span{font-size:10.5px;font-weight:600;color:var(--muted)}
+.sub{min-width:0}
+.subh{font-size:11.5px;font-weight:800;margin-bottom:6px}
+.subh b{color:var(--accent);font-variant-numeric:tabular-nums}
+.subrow{display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:4px}
+.subrow.dim{color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* レーダーチャート */
+.radar-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+.radar{width:100%;max-width:280px;height:auto}
+.radar .rw{fill:none;stroke:rgba(255,255,255,.13);stroke-width:1}
+.radar .rme{fill:rgba(255,61,129,.3);stroke:var(--accent);stroke-width:2}
+.radar .ravg{fill:none;stroke:rgba(255,255,255,.5);stroke-width:1.4;stroke-dasharray:3 3}
+.radar .rl{fill:#9a9aae;font-size:8px;font-weight:700;text-anchor:middle}
+.radar .rv{fill:#f3f3f7;font-size:9px;font-weight:800;text-anchor:middle}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.legend i{width:14px;height:0;border-top:2px solid var(--accent);display:inline-block}
+.legend i.avg{border-top:2px dashed rgba(255,255,255,.5);margin-left:10px}
+
+/* 区間グラフ */
+.sgraph{display:flex;align-items:flex-end;gap:2px;height:74px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.sgraph .sbar{flex:1;min-width:0;border-radius:2px 2px 0 0;background:linear-gradient(180deg,#8bd3ff,#3b82f6)}
+.sgraph .sbar.sabi{background:linear-gradient(180deg,#ffc46b,#f97316)}
+.sgraph.hear .sbar{background:linear-gradient(180deg,#ff9ec4,#ff3d81)}
+.sgraph.hear .sbar.sabi{background:linear-gradient(180deg,#ffd1e4,#ff1f6d)}
+.sgraph .sgap{flex:1;min-width:0;height:2px;background:rgba(255,255,255,.1);border-radius:2px}
+
+/* メーター */
+.meter{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted);white-space:nowrap}
+.mtrack{position:relative;flex:1;min-width:40px;height:6px;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#2d2d3d,var(--accent))}
+.mtrack i{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(0,0,0,.5)}
+
+/* 上手さのひし形 */
+.dots{display:inline-flex;gap:3px}
+.dots i{width:9px;height:9px;background:#3a3a48;transform:rotate(45deg);border-radius:1px}
+.dots i.on{background:linear-gradient(135deg,#7ee8c6,var(--ok))}
+.dnum{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* 声域の鍵盤 */
+.kbd{position:relative;height:46px;border-radius:5px;overflow:hidden;background:#15151d;border:1px solid var(--line)}
+.kbd .wk{position:absolute;top:0;bottom:0;background:#e9e9f0;border-right:1px solid #b9b9c8}
+.kbd .wk.in{background:linear-gradient(180deg,#fff,#ffd7e6)}
+.kbd .wk.edge{background:linear-gradient(180deg,#fff,var(--accent))}
+.kbd .bk{position:absolute;top:0;height:60%;background:#1c1c26;border-radius:0 0 2px 2px;z-index:2}
+.kbd .bk.in{background:#7a2545}
+.kbd .bk.edge{background:var(--accent)}
+.kbd-lab{margin-top:6px;font-size:11.5px;color:var(--muted)}
+.kbd-lab b{color:var(--text);font-variant-numeric:tabular-nums}
+
+/* 表現力などの回数 */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.cchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.cchip b{font-size:12.5px;font-variant-numeric:tabular-nums}
 
 /* ---- 声域分析 ---- */
 .voice{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
@@ -283,6 +340,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .empty h3{color:var(--text);margin:0 0 8px;font-size:17px}
 .empty p{margin:0 0 18px;font-size:13px;line-height:1.8}
 dialog{border:1px solid var(--line);background:var(--elev);color:var(--text);border-radius:16px;padding:0;width:min(460px,92vw);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+#hdlg{width:min(600px,94vw);max-height:88dvh;display:flex;flex-direction:column}
+#hdlg .dlg-b{overflow-y:auto;gap:16px}
 dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 .dlg-h{padding:20px 22px 0;font-size:17px;font-weight:800}
 .dlg-b{padding:18px 22px;display:flex;flex-direction:column;gap:14px}
@@ -361,6 +420,9 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   .suglist{max-height:44dvh}
 
   dialog{width:100vw;max-width:100vw;margin:0 auto;position:fixed;left:0;right:0;bottom:0;top:auto;border-radius:20px 20px 0 0;border-bottom:none;max-height:92dvh;overflow-y:auto}
+  #hdlg{width:100vw;max-height:94dvh}
+  .sec.twocol{grid-template-columns:1fr}
+  .take-score{font-size:26px}
   .dlg-f{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
   .dlg-f .btn{flex:1;text-align:center;padding:13px}
   .dlg-f .left{flex:0 0 100%;margin-right:0;order:9}
@@ -866,18 +928,7 @@ function noteName(midi){
   return (name || 'oct' + oct) + NOTE_NAME[midi % 12];
 }
 
-/** 採点データの中から音域らしき値を拾う。項目名は機種で違うので広めに探す */
-function noteFromDetail(detail, kind){
-  if(!detail) return null;
-  const want = kind === 'high' ? /(highest|high|max).*(note|tone|pitch)|最高音/i
-                               : /(lowest|low|min).*(note|tone|pitch)|最低音/i;
-  for(const [k, v] of Object.entries(detail)){
-    if(!want.test(k)) continue;
-    const n = parseNote(v);
-    if(n != null) return n;
-  }
-  return null;
-}
+/* DAMは声域をMIDIノート番号で返す（68 → mid2G#） */
 
 /* =========================================================
    声域の分析 → 新規メモのキー設定を助ける
@@ -893,35 +944,42 @@ function median(nums){
 
 function analyzeVoice(){
   const highs = [], lows = [];
+  // 実際に歌ったキーと、そのときの得点。歌ったキー基準で見るのが正確
+  const sungKeys = [], keyScore = [];
+
   for(const r of history){
-    const h = noteFromDetail(r.detail, 'high'); if(h != null) highs.push(h);
-    const l = noteFromDetail(r.detail, 'low');  if(l != null) lows.push(l);
+    const d = r.detail; if(!d) continue;
+    if(d.range){
+      if(d.range.high != null) highs.push(d.range.high);
+      if(d.range.low  != null) lows.push(d.range.low);
+    }
+    if(d.key != null){
+      sungKeys.push(d.key);
+      if(r.score != null) keyScore.push({ key:d.key, score:r.score });
+    }
   }
 
-  // マイメモのキー設定は、その人が実際に歌いやすいと判断した結果
-  const keys = songs.map(s => Number(s.key) || 0);
+  // マイメモのキー設定は、その人が「歌いやすい」と判断した結果
+  const memoKeys = songs.map(s => Number(s.key) || 0);
 
   // キーを下げたときと上げたときで、点数に差が出ているか
-  const scored = [];
-  for(const s of songs){
-    const rec = history.filter(r => norm(r.title) === norm(s.title) && r.score != null);
-    if(rec.length) scored.push({ key:Number(s.key) || 0, best:Math.max(...rec.map(r => r.score)) });
-  }
-  const down = scored.filter(x => x.key < 0), up = scored.filter(x => x.key > 0), flat = scored.filter(x => x.key === 0);
-  const avg = a => a.length ? a.reduce((t, x) => t + x.best, 0) / a.length : null;
+  const down = keyScore.filter(x => x.key < 0), up = keyScore.filter(x => x.key > 0), flat = keyScore.filter(x => x.key === 0);
+  const avg = a => a.length ? a.reduce((t, x) => t + x.score, 0) / a.length : null;
 
   return {
     hasRange: highs.length > 0 || lows.length > 0,
     samples: Math.max(highs.length, lows.length),
     highest: highs.length ? Math.max(...highs) : null,
     lowest:  lows.length  ? Math.min(...lows)  : null,
-    highTypical: median(highs),
+    highTypical: median(highs),          // 「たまに出た」最高音に引っ張られないよう中央値も見る
     lowTypical:  median(lows),
-    keyCount: keys.length,
-    keyMedian: median(keys),
-    keyMin: keys.length ? Math.min(...keys) : null,
-    keyMax: keys.length ? Math.max(...keys) : null,
-    scoreByKey: { down:avg(down), flat:avg(flat), up:avg(up), n:scored.length },
+    sungKeyCount: sungKeys.length,
+    sungKeyMedian: median(sungKeys),
+    keyCount: memoKeys.length,
+    keyMedian: median(memoKeys),
+    keyMin: memoKeys.length ? Math.min(...memoKeys) : null,
+    keyMax: memoKeys.length ? Math.max(...memoKeys) : null,
+    scoreByKey: { down:avg(down), flat:avg(flat), up:avg(up), n:keyScore.length },
   };
 }
 
@@ -934,6 +992,17 @@ function suggestKeyFor(title, artist){
 
   const same = songs.find(s => norm(s.title) === t && (!a || !s.artist || norm(s.artist) === a));
   if(same) return { key:Number(same.key) || 0, reason:'この曲は既にメモ済みです', strong:true };
+
+  // 同じ曲を実際に歌っていれば、そのときのキーが最も確かな根拠
+  const sung = history.filter(r => norm(r.title) === t && r.detail && r.detail.key != null);
+  if(sung.length){
+    const best = sung.reduce((x, y) => (y.score ?? -1) > (x.score ?? -1) ? y : x);
+    return {
+      key: best.detail.key,
+      reason: `この曲は ${fmtKey(best.detail.key)} で歌って${best.score != null ? ` ${best.score.toFixed(3)}点` : 'います'}`,
+      strong: true,
+    };
+  }
 
   if(a){
     const ks = songs.filter(s => norm(s.artist) === a).map(s => Number(s.key) || 0);
@@ -1294,11 +1363,16 @@ function voicePanel(){
       <div class="vcell"><span>最高音</span><b>${noteName(v.highest)}</b></div>
       <div class="vcell"><span>最低音</span><b>${noteName(v.lowest)}</b></div>
       <div class="vcell"><span>音域</span><b>${v.highest != null && v.lowest != null ? (v.highest - v.lowest) + '半音' : '—'}</b></div>
-      <div class="vcell"><span>よく出す最高音</span><b>${noteName(v.highTypical)}</b></div>` : '';
+      <div class="vcell"><span>ふだんの最高音</span><b>${noteName(v.highTypical)}</b></div>` : '';
 
-  const keyCells = v.keyCount ? `
-      <div class="vcell"><span>設定キーの中央値</span><b>${fmtKey(v.keyMedian)}</b></div>
-      <div class="vcell"><span>キーの range</span><b>${fmtKey(v.keyMin)} 〜 ${fmtKey(v.keyMax)}</b></div>` : '';
+  const keyCells = `
+      ${v.sungKeyCount ? `<div class="vcell"><span>よく歌うキー</span><b>${fmtKey(v.sungKeyMedian)}</b></div>` : ''}
+      ${v.keyCount ? `
+      <div class="vcell"><span>メモの設定キー</span><b>${fmtKey(v.keyMedian)}</b></div>
+      <div class="vcell"><span>キーの幅</span><b>${fmtKey(v.keyMin)} 〜 ${fmtKey(v.keyMax)}</b></div>` : ''}`;
+
+  const kbd = v.hasRange && v.lowest != null && v.highest != null
+    ? `<div style="margin:2px 0 12px">${keyboardRange(v.lowest, v.highest)}</div>` : '';
 
   // 「キーを下げた曲のほうが点が高い」なら、それは有用な助言になる
   let advice = '';
@@ -1313,15 +1387,16 @@ function voicePanel(){
   }
 
   const note = v.hasRange
-    ? `${v.samples} 回分の採点データから算出しています。`
-    : `取り込んだ採点データに音域の項目が含まれていないため、実測の声域は出せません。
-       代わりに、あなたがマイメモで実際に選んだキー設定${v.keyCount ? `（${v.keyCount}曲）` : ''}から傾向を出しています。`;
+    ? `${v.samples} 回分の採点データ（DAMが記録した実測の声域）から算出しています。`
+    : `取り込んだ採点データに声域の項目がまだありません。「⟳ 精密採点履歴を自動取得」を押すと追加されます。
+       いまはマイメモのキー設定${v.keyCount ? `（${v.keyCount}曲）` : ''}から傾向を出しています。`;
 
-  if(!rangeCells && !keyCells) return '';
+  if(!rangeCells.trim() && !keyCells.trim()) return '';
 
   return `
     <div class="panel">
       <h3>あなたの声域とキーの傾向</h3>
+      ${kbd}
       <div class="voice">${rangeCells}${keyCells}</div>
       ${advice ? `<div class="vcell wide" style="margin-bottom:10px"><span>傾向</span><b style="font-size:13px;font-weight:700">${esc(advice)}</b></div>` : ''}
       <p class="note" style="margin:0">${note}<br>
@@ -1603,25 +1678,105 @@ function openEdit(id){
    項目名は採点機種で違うので、既知のものだけ和名を当て、
    知らない項目もそのまま並べて取りこぼさない
    ========================================================= */
-const DETAIL_LABELS = {
-  totalScore:'総合点', pitch:'音程', intonation:'音程', stability:'安定性',
-  expressive:'表現力', expression:'表現力', vocal:'ボーカル', rhythm:'リズム',
-  vibratoLongtone:'ビブラート＆ロングトーン', vibrato:'ビブラート', longtone:'ロングトーン',
-  vibratoType:'ビブラートの種類', vibratoCount:'ビブラート回数', vibratoTotalSec:'ビブラート合計秒',
-  shakuri:'しゃくり', kobushi:'こぶし', fall:'フォール',
-  highestNote:'最高音', lowestNote:'最低音', highestTone:'最高音', lowestTone:'最低音',
-  hearingPoint:'ハートポイント', aiSensitivityBonus:'Ai感性ボーナス',
-  songName:'曲名', artistName:'アーティスト', contentsName:'曲名',
-  scoringDateTime:'歌唱日時',
+const RADAR_AXES = [
+  ['pitch','音程'], ['stability','安定性'], ['expressive','表現力'],
+  ['hearing','聴感'], ['rhythm','リズム'], ['vibratoLongtone','ビブラート\nロングトーン'],
+];
+const COUNT_LABELS = {
+  shakuri:'しゃくり', kobushi:'こぶし', fall:'フォール', accent:'アクセント',
+  hammeringOn:'ハンマリング', pullingOff:'プリング', edgeVoice:'エッジボイス',
+  hiccup:'ヒーカップ', flydown:'フライダウン',
 };
-/* 一覧に出す必要がない、内部管理用の項目 */
-const DETAIL_SKIP = /^(songName|artistName|contentsName|scoringDateTime|requestNo|sequenceNo|contentsId|.*Id|damtomoId)$/;
+// 画面で確認できた値のみ名前を当てる。未確認の値は番号のまま出す
+const VIBRATO_TYPES = { 6:'ボックス形' };
+const HEART_TYPES   = { 3:'パワフル＆スマイル' };
 
-function detailRows(detail){
-  if(!detail) return [];
-  return Object.entries(detail)
-    .filter(([k]) => !DETAIL_SKIP.test(k))
-    .map(([k, v]) => [DETAIL_LABELS[k] || k, v]);
+/** 6角形のレーダーチャート。本人＝実線、全国平均＝点線 */
+function radarSvg(radar, avg){
+  const R = 62, cx = 78, cy = 74;
+  const pt = (i, v) => {
+    const ang = -Math.PI / 2 + i * Math.PI / 3;
+    const r = R * Math.max(0, Math.min(100, v ?? 0)) / 100;
+    return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
+  };
+  const poly = vals => RADAR_AXES.map(([k], i) => pt(i, vals?.[k]).map(n => n.toFixed(1)).join(',')).join(' ');
+  const web = [100, 75, 50, 25].map(p =>
+    `<polygon points="${RADAR_AXES.map((_, i) => pt(i, p).map(n => n.toFixed(1)).join(',')).join(' ')}" class="rw"/>`).join('');
+  const spokes = RADAR_AXES.map((_, i) => {
+    const [x, y] = pt(i, 100);
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rw"/>`;
+  }).join('');
+  const labels = RADAR_AXES.map(([k, label], i) => {
+    const [x, y] = pt(i, 130);
+    const lines = label.split('\n');
+    return lines.map((ln, j) =>
+      `<text x="${x.toFixed(1)}" y="${(y + (j - (lines.length - 1) / 2) * 9).toFixed(1)}" class="rl">${esc(ln)}</text>`).join('');
+  }).join('');
+  const values = RADAR_AXES.map(([k], i) => {
+    const [x, y] = pt(i, 112);
+    return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" class="rv">${radar?.[k] ?? '—'}</text>`;
+  }).join('');
+
+  return `<svg class="radar" viewBox="0 0 156 152" role="img" aria-label="採点レーダーチャート">
+    ${web}${spokes}
+    ${avg ? `<polygon points="${poly(avg)}" class="ravg"/>` : ''}
+    <polygon points="${poly(radar)}" class="rme"/>
+    ${labels}${values}
+  </svg>`;
+}
+
+/** 24区間のグラフ。kinds が 2 の区間はサビとして色を変える */
+function sectionGraph(values, kinds, cls){
+  if(!values) return '';
+  const bars = values.map((v, i) => {
+    const kind = kinds ? kinds[i] : 1;
+    if(kind === 0) return '<div class="sgap"></div>';          // 演奏していない区間
+    return `<div class="sbar ${kind === 2 ? 'sabi' : ''}" style="height:${Math.max(2, v ?? 0)}%" title="区間${i+1}: ${v ?? '—'}"></div>`;
+  }).join('');
+  return `<div class="sgraph ${cls || ''}">${bars}</div>`;
+}
+
+/** 左右のラベルつきメーター（安定性・リズム） */
+function meter(value, max, left, right){
+  const p = Math.max(0, Math.min(100, (value / max) * 100));
+  return `<div class="meter">
+      <span>${esc(left)}</span>
+      <div class="mtrack"><i style="left:${p.toFixed(1)}%"></i></div>
+      <span>${esc(right)}</span>
+    </div>`;
+}
+
+/** 上手さを5段階のひし形で。生値も併記して誤解を招かないようにする */
+function skillDots(v, max = 10){
+  const filled = Math.round((v / max) * 5);
+  return `<span class="dots">${[0,1,2,3,4].map(i => `<i class="${i < filled ? 'on' : ''}"></i>`).join('')}</span>
+          <span class="dnum">${v}/${max}</span>`;
+}
+
+/** 声域を鍵盤で示す。low〜high を塗り、前後に余白の鍵盤を置く */
+function keyboardRange(low, high){
+  if(low == null || high == null) return '';
+  const from = Math.max(0, low - 4), to = Math.min(127, high + 4);
+  const isBlack = n => [1,3,6,8,10].includes(n % 12);
+  const whites = [];
+  for(let n = from; n <= to; n++) if(!isBlack(n)) whites.push(n);
+  const w = 100 / whites.length;
+
+  const whiteKeys = whites.map((n, i) =>
+    `<div class="wk ${n >= low && n <= high ? 'in' : ''} ${n === low || n === high ? 'edge' : ''}"
+          style="left:${(i * w).toFixed(3)}%;width:${w.toFixed(3)}%"></div>`).join('');
+
+  const blackKeys = [];
+  for(let n = from; n <= to; n++){
+    if(!isBlack(n)) continue;
+    const leftWhite = whites.filter(x => x < n).length;      // 直前の白鍵の数＝位置
+    if(leftWhite === 0 || leftWhite >= whites.length) continue;
+    blackKeys.push(`<div class="bk ${n >= low && n <= high ? 'in' : ''} ${n === low || n === high ? 'edge' : ''}"
+      style="left:${(leftWhite * w - w * 0.3).toFixed(3)}%;width:${(w * 0.6).toFixed(3)}%"></div>`);
+  }
+
+  return `<div class="kbd">${whiteKeys}${blackKeys.join('')}</div>
+    <div class="kbd-lab"><b>${noteName(low)}</b> 〜 <b>${noteName(high)}</b>（${high - low} 半音）</div>`;
 }
 
 let hDetailKey = null;
@@ -1647,25 +1802,93 @@ function openHistDetail(key){
       </div>
     </div>`;
 
-  const body = takes.map(t => {
-    const rows = detailRows(t.detail);
-    return `
-    <div class="take">
-      <div class="take-h">
-        <span class="take-date">${fmtDate(t.date)}</span>
-        <span class="mchip">${esc(t.mode || '—')}</span>
-        <span class="take-score">${t.score != null ? t.score.toFixed(3) : '—'}</span>
-      </div>
-      ${t.bonus != null ? `<div class="take-sub">素点 ${t.rawScore != null ? t.rawScore.toFixed(3) : '—'}　＋ボーナス ${t.bonus.toFixed(3)}</div>` : ''}
-      ${rows.length ? `<div class="dgrid">${rows.map(([k, v]) =>
-        `<div class="dcell"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`
-        : `<div class="take-sub">この歌唱には内訳データがありません。</div>`}
-    </div>`;
-  }).join('');
-
-  document.getElementById('h-body').innerHTML = head + (body || '<p class="note">歌唱データがありません。</p>');
+  document.getElementById('h-body').innerHTML =
+    head + (takes.map(takeHtml).join('') || '<p class="note">歌唱データがありません。</p>');
   document.getElementById('h-tomemo').style.display = agg.inMemo ? 'none' : '';
   document.getElementById('hdlg').showModal();
+}
+
+/** 歌唱1回分のカード */
+function takeHtml(t){
+  const d = t.detail;
+  const sc = t.score != null ? t.score.toFixed(3) : '—';
+
+  const header = `
+    <div class="take-h">
+      <span class="take-date">${fmtDate(t.date)}</span>
+      <span class="mchip">${esc(t.mode || '—')}</span>
+      <span class="take-score">${sc}<small>点</small></span>
+    </div>
+    <div class="take-meta">
+      ${t.bonus != null ? `<span>素点 ${t.rawScore != null ? t.rawScore.toFixed(3) : '—'} ＋ボーナス ${t.bonus.toFixed(3)}</span>` : ''}
+      ${d?.nationalAvg != null ? `<span>全国平均 ${d.nationalAvg.toFixed(3)}</span>` : ''}
+      ${d?.maxScore != null ? `<span>自己最高 ${d.maxScore.toFixed(3)}</span>` : ''}
+      ${d?.rank != null ? `<span>月次 ${d.rank}位 / ${d.rankAll ?? '—'}人</span>` : ''}
+      ${d?.key != null ? `<span class="keychip">キー ${fmtKey(d.key)}</span>` : ''}
+    </div>`;
+
+  if(!d) return `<div class="take">${header}<div class="take-sub">この歌唱には内訳データがありません。再取得すると追加されます。</div></div>`;
+
+  const counts = d.counts ? Object.entries(d.counts).filter(([, v]) => v > 0) : [];
+
+  return `<div class="take">
+    ${header}
+    ${d.radar ? `<div class="sec radar-wrap">
+      ${radarSvg(d.radar, d.avgRadar)}
+      ${d.avgRadar ? '<div class="legend"><i class="me"></i>あなた<i class="avg"></i>全国平均</div>' : ''}
+    </div>` : ''}
+
+    ${d.pitchGraph ? `<div class="sec">
+      <div class="sech">音程<b>${d.radar?.pitch != null ? d.radar.pitch + '%' : ''}</b><span>演奏区間ごとの音程正確率（濃い色はサビ）</span></div>
+      ${sectionGraph(d.pitchGraph, d.pitchIndex)}
+    </div>` : ''}
+
+    ${(d.intonation != null || counts.length) ? `<div class="sec">
+      <div class="sech">表現力<b>${d.radar?.expressive != null ? d.radar.expressive + '点' : ''}</b>${d.intonation != null ? `<span>抑揚 ${d.intonation}点</span>` : ''}</div>
+      ${counts.length ? `<div class="chips">${counts.map(([k, v]) =>
+        `<span class="cchip">${esc(COUNT_LABELS[k] || k)}<b>${v}</b></span>`).join('')}</div>` : ''}
+    </div>` : ''}
+
+    ${d.hearGraph ? `<div class="sec">
+      <div class="sech">聴感<b>${d.radar?.hearing != null ? d.radar.hearing + '点' : ''}</b><span>区間ごとの聴感評価</span></div>
+      ${sectionGraph(d.hearGraph, d.hearIndex, 'hear')}
+    </div>` : ''}
+
+    ${(d.longtone || d.vibrato) ? `<div class="sec twocol">
+      ${d.longtone ? `<div class="sub">
+        <div class="subh">ロングトーン</div>
+        <div class="subrow">上手さ ${skillDots(d.longtone.skill ?? 0)}</div>
+        ${d.longtone.count != null ? `<div class="subrow dim">${d.longtone.count} 回</div>` : ''}
+      </div>` : ''}
+      ${d.vibrato ? `<div class="sub">
+        <div class="subh">ビブラート</div>
+        <div class="subrow">上手さ ${skillDots(d.vibrato.skill ?? 0)}</div>
+        <div class="subrow dim">
+          ${d.vibrato.totalSec != null ? `合計 ${d.vibrato.totalSec.toFixed(1)}秒　` : ''}
+          ${d.vibrato.count != null ? `${d.vibrato.count} 回　` : ''}
+          ${d.vibrato.type != null ? `タイプ ${VIBRATO_TYPES[d.vibrato.type] || d.vibrato.type}` : ''}
+        </div>
+      </div>` : ''}
+    </div>` : ''}
+
+    ${(d.radar?.stability != null || d.timing != null) ? `<div class="sec twocol">
+      ${d.radar?.stability != null ? `<div class="sub">
+        <div class="subh">安定性 <b>${d.radar.stability}点</b></div>
+        ${meter(d.radar.stability, 100, '震えがち', 'まっすぐ')}
+      </div>` : ''}
+      ${d.timing != null ? `<div class="sub">
+        <div class="subh">リズム <b>${d.radar?.rhythm != null ? d.radar.rhythm + '点' : ''}</b></div>
+        ${meter(d.timing, 8, 'タメ', '走り')}
+      </div>` : ''}
+    </div>` : ''}
+
+    ${d.range && d.range.low != null ? `<div class="sec">
+      <div class="sech">声域</div>
+      ${keyboardRange(d.range.low, d.range.high)}
+    </div>` : ''}
+
+    ${d.hearingType != null ? `<div class="take-sub">ハートタイプ：${esc(HEART_TYPES[d.hearingType] || 'タイプ ' + d.hearingType)}</div>` : ''}
+  </div>`;
 }
 
 /* =========================================================
