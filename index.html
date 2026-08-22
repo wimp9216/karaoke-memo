@@ -7,19 +7,54 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Karaoke Memo — 歌いたい曲リスト</title>
 <style>
+/* ===== テーマ =====
+   既定はダーク。html[data-theme="light"] で通常（明るい）モードに切り替わる。
+   面の上に薄く重ねる色は --ov（オーバーレイの3チャンネル）を通し、
+   濃さ（アルファ）はそのまま活かす。--ov-inv は「反転色の面」の上に置くとき用 */
 :root{
   --bg:#0a0a0f;
   --elev:#13131c;
   --card:#1b1b26;
   --card-hi:#23232f;
-  --line:rgba(255,255,255,.08);
+  --line:rgba(var(--ov),.08);
   --text:#f3f3f7;
   --muted:#9a9aae;
   --accent:#ff3d81;
   --accent2:#8b5cf6;
   --ok:#3ddc97;
+  --ng:#ff8fb5;
+  --dn:#93c5fd;
+  --warn-fg:#ffc9d8;
+  --ov:255,255,255;
+  --ov-inv:0,0,0;
+  --inset:rgba(0,0,0,.3);
+  --main-bg:linear-gradient(180deg,#241733 0,#151520 300px,#101017 100%);
+  --bar:rgba(14,14,20,.92);
+  --dim:#3a3a48;
+  --key-bg:#15151d;
   --radius:14px;
   --tabh:58px;
+}
+html[data-theme="light"]{
+  --bg:#f2f2f6;
+  --elev:#ffffff;
+  --card:#ffffff;
+  --card-hi:#f1f1f6;
+  --text:#17171f;
+  --muted:#6b6b7c;
+  --accent:#e0186c;
+  --accent2:#7c3aed;
+  --ok:#0f9d63;
+  --ng:#c81e5b;
+  --dn:#1d4ed8;
+  --warn-fg:#a3123f;
+  --ov:0,0,0;
+  --ov-inv:255,255,255;
+  --inset:rgba(0,0,0,.04);
+  --main-bg:linear-gradient(180deg,#f0e8fa 0,#fafaff 300px,#f7f7fb 100%);
+  --bar:rgba(255,255,255,.92);
+  --dim:#c3c3d0;
+  --key-bg:#d7d7e2;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -32,8 +67,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:none;background:none}
 input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防止 */
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:#33333f;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
-::-webkit-scrollbar-thumb:hover{background:#4a4a5a;background-clip:padding-box}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:padding-box}
 
 /* ================= layout ================= */
 .app{
@@ -42,7 +77,7 @@ input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防
 }
 .sidebar{background:var(--elev);border-radius:var(--radius);padding:18px 14px;overflow:auto;display:flex;flex-direction:column;gap:22px}
 .main{
-  background:linear-gradient(180deg,#241733 0,#151520 300px,#101017 100%);
+  background:var(--main-bg);
   border-radius:var(--radius);overflow-y:auto;overflow-x:hidden;position:relative;-webkit-overflow-scrolling:touch;
 }
 .quickbar{grid-column:1/-1;grid-row:2;padding:10px 4px}
@@ -52,13 +87,13 @@ input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防
 .brand .disc{
   width:30px;height:30px;border-radius:50%;flex:none;
   background:radial-gradient(circle at 50% 50%,#0a0a0f 0 22%,var(--accent) 23% 55%,var(--accent2) 56% 100%);
-  box-shadow:0 0 0 1px rgba(255,255,255,.12) inset;
+  box-shadow:0 0 0 1px rgba(var(--ov),.12) inset;
 }
 .brand small{display:block;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.14em}
 .nav{display:flex;flex-direction:column;gap:2px}
 .nav button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:9px;color:var(--muted);font-weight:700;font-size:14px;transition:.15s;text-align:left}
-.nav button:hover{color:var(--text);background:rgba(255,255,255,.05)}
-.nav button.active{color:var(--text);background:rgba(255,255,255,.09)}
+.nav button:hover{color:var(--text);background:rgba(var(--ov),.05)}
+.nav button.active{color:var(--text);background:rgba(var(--ov),.09)}
 .nav .ico{font-size:17px;width:20px;text-align:center}
 .side-title{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.12em;padding:0 12px 8px}
 .stats{display:flex;flex-direction:column;gap:8px;padding:0 12px}
@@ -66,23 +101,22 @@ input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防
 .stat b{font-size:19px;color:var(--text);font-variant-numeric:tabular-nums}
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:6px}
 .side-foot button{padding:9px 12px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--muted);border:1px solid var(--line);text-align:left;transition:.15s}
-.side-foot button:hover{color:var(--text);border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.04)}
+.side-foot button:hover{color:var(--text);border-color:rgba(var(--ov),.22);background:rgba(var(--ov),.04)}
 .side-foot button.on{color:var(--ok);border-color:rgba(61,220,151,.35)}
 
 /* ================= main header ================= */
-.topbar{
-  position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
-  padding:14px 26px;backdrop-filter:blur(14px);background:rgba(12,12,18,.55);
-  border-bottom:1px solid transparent;transition:.2s;
-}
-.topbar.stuck{border-bottom-color:var(--line);background:rgba(12,12,18,.88)}
-.search{position:relative;flex:1;max-width:380px}
-.search input{width:100%;padding:10px 14px 10px 38px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.06);outline:none;font-size:14px}
-.search input:focus{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+/* 検索バーはマイメモ／アーティストにだけ出す。
+   一覧の直上に置きたいが、content は描画のたびに作り直すので
+   （入力中にフォーカスが飛ばないよう）content の外に固定で置いている */
+.searchbar{padding:2px 26px 10px}
+.searchbar[hidden]{display:none}
+.search{position:relative;max-width:380px}
+.search input{width:100%;padding:10px 14px 10px 38px;border-radius:999px;border:1px solid var(--line);background:rgba(var(--ov),.06);outline:none;font-size:14px}
+.search input:focus{border-color:rgba(var(--ov),.3);background:rgba(var(--ov),.1)}
 .search .mag{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
 .chip{padding:8px 14px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--muted);transition:.15s;white-space:nowrap}
-.chip:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
-.chip.on{background:var(--text);color:#0a0a0f;border-color:var(--text)}
+.chip:hover{color:var(--text);border-color:rgba(var(--ov),.25)}
+.chip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
 .spacer{flex:1}
 
 .hero{padding:14px 26px 6px}
@@ -97,7 +131,7 @@ input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防
 /* ================= table (desktop) ================= */
 table{width:100%;border-collapse:collapse}
 thead th{
-  position:sticky;top:56px;z-index:4;background:rgba(14,14,20,.92);backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:4;background:var(--bar);backdrop-filter:blur(10px);
   text-align:left;font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--muted);
   padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none;
 }
@@ -106,8 +140,8 @@ thead th.sortable:hover{color:var(--text)}
 thead th .arw{opacity:0;margin-left:4px;font-size:10px}
 thead th.act{color:var(--text)}
 thead th.act .arw{opacity:1;color:var(--accent)}
-tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s}
-tbody tr:hover{background:rgba(255,255,255,.055)}
+tbody tr{border-bottom:1px solid rgba(var(--ov),.04);transition:background .12s}
+tbody tr:hover{background:rgba(var(--ov),.055)}
 tbody td{padding:10px 12px;font-size:14px;vertical-align:middle}
 .c-num{width:44px;color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px}
 .c-fav{width:44px}
@@ -122,16 +156,16 @@ tbody td{padding:10px 12px;font-size:14px;vertical-align:middle}
 .t-main .ts{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .artist-cell{color:var(--muted);font-size:13.5px}
 .artist-cell b{color:var(--text);font-weight:600}
-.keytag{display:inline-block;min-width:46px;text-align:center;padding:4px 9px;border-radius:7px;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.08);border:1px solid var(--line)}
-.keytag.up{background:rgba(255,61,129,.16);border-color:rgba(255,61,129,.4);color:#ff8fb5}
-.keytag.down{background:rgba(96,165,250,.14);border-color:rgba(96,165,250,.38);color:#93c5fd}
-.fav{font-size:16px;color:#3f3f4d;transition:.15s}
-.fav:hover{color:#8b8b9e}
+.keytag{display:inline-block;min-width:46px;text-align:center;padding:4px 9px;border-radius:7px;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;background:rgba(var(--ov),.08);border:1px solid var(--line)}
+.keytag.up{background:rgba(255,61,129,.16);border-color:rgba(255,61,129,.4);color:var(--ng)}
+.keytag.down{background:rgba(96,165,250,.14);border-color:rgba(96,165,250,.38);color:var(--dn)}
+.fav{font-size:16px;color:var(--dim);transition:.15s}
+.fav:hover{color:var(--muted)}
 .fav.on{color:var(--accent)}
 .rowbtn{padding:5px 9px;border-radius:7px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px solid transparent;transition:.15s}
 tbody tr:hover .rowbtn{border-color:var(--line)}
-.rowbtn:hover{color:var(--text);background:rgba(255,255,255,.1)}
-.rowbtn.danger:hover{color:#ff6b81;background:rgba(255,61,129,.14)}
+.rowbtn:hover{color:var(--text);background:rgba(var(--ov),.1)}
+.rowbtn.danger:hover{color:var(--ng);background:rgba(255,61,129,.14)}
 .rowbtn.add{color:var(--ok);border-color:rgba(61,220,151,.3)}
 .rowbtn.add:hover{background:rgba(61,220,151,.14)}
 .memo-cell{color:var(--muted);font-size:12.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -144,7 +178,7 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .hd-head .thumb{width:48px;height:48px;border-radius:9px;font-size:18px}
 .hd-artist{font-size:13.5px;color:var(--muted);font-weight:600}
 .hd-sum{font-size:12px;color:var(--muted);margin-top:3px}
-.take{border:1px solid var(--line);border-radius:11px;padding:13px;background:rgba(0,0,0,.24)}
+.take{border:1px solid var(--line);border-radius:11px;padding:13px;background:var(--inset)}
 .take-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .take-date{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .take-score{margin-left:auto;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
@@ -157,8 +191,8 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 /* ---- 歌唱の一覧（曲を選んだ直後） ---- */
 .takelist{display:flex;flex-direction:column;gap:7px}
 .takeitem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
-  padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.24);transition:.15s}
-.takeitem:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.22)}
+  padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--inset);transition:.15s}
+.takeitem:hover{background:rgba(var(--ov),.07);border-color:rgba(var(--ov),.22)}
 .takeitem:active{transform:scale(.99)}
 .ti-date{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ti-key{font-size:11px;font-weight:800;padding:1px 8px;border-radius:999px;background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);white-space:nowrap}
@@ -180,22 +214,22 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 /* レーダーチャート */
 .radar-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
 .radar{width:100%;max-width:340px;height:auto}
-.radar .rw{fill:none;stroke:rgba(255,255,255,.13);stroke-width:1}
+.radar .rw{fill:none;stroke:rgba(var(--ov),.13);stroke-width:1}
 .radar .rme{fill:rgba(255,61,129,.3);stroke:var(--accent);stroke-width:2}
-.radar .ravg{fill:none;stroke:rgba(255,255,255,.5);stroke-width:1.4;stroke-dasharray:3 3}
-.radar .rl{fill:#9a9aae;font-size:8.5px;font-weight:700}
-.radar .rv{fill:#f3f3f7;font-size:10.5px;font-weight:800}
+.radar .ravg{fill:none;stroke:rgba(var(--ov),.5);stroke-width:1.4;stroke-dasharray:3 3}
+.radar .rl{fill:var(--muted);font-size:8.5px;font-weight:700}
+.radar .rv{fill:var(--text);font-size:10.5px;font-weight:800}
 .legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
 .legend i{width:14px;height:0;border-top:2px solid var(--accent);display:inline-block}
-.legend i.avg{border-top:2px dashed rgba(255,255,255,.5);margin-left:10px}
+.legend i.avg{border-top:2px dashed rgba(var(--ov),.5);margin-left:10px}
 
 /* 区間グラフ */
-.sgraph{display:flex;align-items:flex-end;gap:2px;height:74px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.sgraph{display:flex;align-items:flex-end;gap:2px;height:74px;padding:6px 8px;border-radius:8px;background:rgba(var(--ov),.04);border:1px solid var(--line)}
 .sgraph .sbar{flex:1;min-width:0;border-radius:2px 2px 0 0;background:linear-gradient(180deg,#8bd3ff,#3b82f6)}
 .sgraph .sbar.sabi{background:linear-gradient(180deg,#ffc46b,#f97316)}
 .sgraph.hear .sbar{background:linear-gradient(180deg,#ff9ec4,#ff3d81)}
 .sgraph.hear .sbar.sabi{background:linear-gradient(180deg,#ffd1e4,#ff1f6d)}
-.sgraph .sgap{flex:1;min-width:0;height:2px;background:rgba(255,255,255,.1);border-radius:2px}
+.sgraph .sgap{flex:1;min-width:0;height:2px;background:rgba(var(--ov),.1);border-radius:2px}
 
 /* メーター */
 .meter{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted);white-space:nowrap}
@@ -204,7 +238,7 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 
 /* 上手さのひし形 */
 .dots{display:inline-flex;gap:3px}
-.dots i{width:9px;height:9px;background:#3a3a48;transform:rotate(45deg);border-radius:1px}
+.dots i{width:9px;height:9px;background:var(--dim);transform:rotate(45deg);border-radius:1px}
 .dots i.on{background:linear-gradient(135deg,#7ee8c6,var(--ok))}
 .dnum{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 
@@ -212,49 +246,57 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 /* 列幅を固定する。ラベルや音名の桁数で鍵盤の幅が変わると、
    キーを上下したときに鍵盤ごと動いて見えてしまう */
 .kbdgrid{display:grid;grid-template-columns:74px minmax(0,1fr) 92px;align-items:center;gap:5px 8px}
-.kbd{position:relative;height:44px;border-radius:5px;overflow:hidden;background:#15151d;border:1px solid var(--line)}
+.kbd{position:relative;height:44px;border-radius:5px;overflow:hidden;background:var(--key-bg);border:1px solid var(--line)}
 .kbd .wk{position:absolute;top:0;bottom:0;background:#e9e9f0;border-right:1px solid #b9b9c8}
 .kbd .wk span{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:7px;font-weight:800;color:#8b8b9e}
 .kbd .bk{position:absolute;top:0;height:60%;background:#1c1c26;border-radius:0 0 2px 2px;z-index:2}
 .kbl{font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kbt{position:relative;height:11px;border-radius:6px;background:rgba(255,255,255,.06)}
+.kbt{position:relative;height:11px;border-radius:6px;background:rgba(var(--ov),.06)}
 .kbt i{position:absolute;top:0;bottom:0;border-radius:6px;min-width:3px}
 .kbt i.song{background:linear-gradient(90deg,var(--accent2),#a78bfa)}
 .kbt i.me{background:linear-gradient(90deg,#3ddc97,#7ee8c6)}
 .kbt i.fit{background:linear-gradient(90deg,#22c55e,#4ade80)}
 .kbt i.over{background:linear-gradient(90deg,var(--accent),#ff8fb5)}
 .kbv{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
-.kbv em{font-style:normal;margin-left:5px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.08)}
+.kbv em{font-style:normal;margin-left:5px;padding:0 5px;border-radius:999px;background:rgba(var(--ov),.08)}
 .rb-verdict{margin-top:9px;font-size:11.5px;font-weight:800}
 .rb-verdict.ok{color:var(--ok)}
-.rb-verdict.ng{color:#ff8fb5}
+.rb-verdict.ng{color:var(--ng)}
 .rb-foot{margin-top:5px;font-size:10.5px;color:var(--muted)}
 
 /* 表現力などの回数 */
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.cchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.cchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(var(--ov),.06);border:1px solid var(--line)}
 .cchip b{font-size:12.5px;font-variant-numeric:tabular-nums}
 
 /* ---- 声域分析 ---- */
 .voice{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
-.vcell{flex:1 1 116px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.vcell{flex:1 1 116px;background:rgba(var(--ov),.05);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .vcell span{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
 .vcell b{font-size:19px;font-variant-numeric:tabular-nums}
 .vcell.wide{flex:1 1 100%}
 /* ---- キー設定の目盛り ---- */
+/* タップだけでなく、指を横に滑らせても値が変わる。
+   pan-y にしておくと、縦スクロールはブラウザに任せたまま横方向だけ拾える。
+   つまみやすいよう、目盛り本体より上下に広い当たり判定を持たせる */
 .ks{display:flex;align-items:flex-end;gap:9px;margin:10px 0 4px;padding-bottom:12px}
 .ks-end{flex:none;font-size:15px;font-weight:800;color:var(--muted);line-height:1;padding-bottom:1px}
-.ks-track{position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;height:16px}
+.ks-track{
+  box-sizing:content-box;position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;height:16px;
+  touch-action:pan-y;cursor:ew-resize;padding:8px 0;margin:-8px 0;
+}
+.ks-track.dragging .ks-tick::after,.ks-track.dragging .ks-tick i{transition:none}
 .ks-tick{position:relative;flex:1;min-width:0;height:16px;display:flex;align-items:flex-end;justify-content:center;padding:0}
-.ks-tick::after{content:'';width:1px;height:8px;background:rgba(255,255,255,.26);transition:.12s}
-.ks-tick.major::after{height:12px;background:rgba(255,255,255,.4)}
-.ks-tick.center::after{width:2px;height:16px;background:rgba(255,255,255,.55)}
+.ks-tick::after{content:'';width:1px;height:8px;background:rgba(var(--ov),.26);transition:.12s}
+.ks-tick.major::after{height:12px;background:rgba(var(--ov),.4)}
+.ks-tick.center::after{width:2px;height:16px;background:rgba(var(--ov),.55)}
 .ks-tick.on::after{width:2px;height:16px;background:var(--accent)}
 .ks-tick i{position:absolute;top:-12px;font-style:normal;font-size:13px;line-height:1;color:var(--accent);opacity:0;transition:.12s}
 .ks-tick.on i{opacity:1}
-.ks-base{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--muted);white-space:nowrap}
+.ks-base{position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--muted);white-space:nowrap}
 
 .keyhint{display:flex;align-items:center;gap:9px;margin-top:7px;font-size:11.5px;color:var(--muted)}
+.keyhint[hidden]{display:none}   /* display:flex が hidden を打ち消してしまうため */
 .keyhint button{flex:none;padding:4px 11px;border-radius:999px;border:1px solid rgba(61,220,151,.4);color:var(--ok);font-size:11px;font-weight:800}
 .keyhint button:hover{background:rgba(61,220,151,.13)}
 .keyhint .why{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -270,12 +312,12 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .rb-rows b{font-variant-numeric:tabular-nums;font-size:12.5px}
 .rb-rows i{margin-left:auto;font-style:normal;font-size:10.5px;color:var(--muted)}
 .rb-rows .ok b,.rb-rows .ok i{color:var(--ok)}
-.rb-rows .ng b,.rb-rows .ng i{color:#ff8fb5}
+.rb-rows .ng b,.rb-rows .ng i{color:var(--ng)}
 .rb-in{display:flex;gap:6px;flex-wrap:wrap}
-.rb-in input{flex:1 1 110px;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.3);outline:none;font-size:12px}
+.rb-in input{flex:1 1 110px;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--inset);outline:none;font-size:12px}
 .rb-in input:focus{border-color:var(--accent2)}
 .rb-in button{flex:none;padding:7px 14px;border-radius:8px;font-size:11.5px;font-weight:800;background:rgba(139,92,246,.3);border:1px solid rgba(139,92,246,.5)}
-.rb-msg{display:block;margin-top:6px;font-size:10.5px;color:#ff8fb5}
+.rb-msg{display:block;margin-top:6px;font-size:10.5px;color:var(--ng)}
 .rb-more summary{cursor:pointer;font-size:10.5px;font-weight:800;color:var(--muted);padding:2px 0}
 .rb-more summary:hover{color:var(--text)}
 .rb-more .rb-in{margin-bottom:2px}
@@ -283,22 +325,19 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 /* ---- 取得バー（連携済みのとき常に上に出る） ---- */
 .syncbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
 .syncbar .btn.big{padding:12px 22px;font-size:14px}
-.syncinfo{display:flex;flex-direction:column;gap:3px;min-width:0}
-.syncinfo b{font-size:13px;font-variant-numeric:tabular-nums}
-.syncinfo span{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .syncbar .dam-fetch-msg{flex:1 1 100%;margin:0}
 
 .modebar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .modebar .chip{display:inline-flex;align-items:center;gap:7px}
-.modebar .cnt{font-size:10.5px;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.1);color:inherit}
-.modebar .chip.on .cnt{background:rgba(0,0,0,.16)}
-.warnbox{margin:0 0 12px;padding:12px 14px;border-radius:10px;font-size:12.5px;line-height:1.85;color:#ffc9d8;background:rgba(255,61,129,.09);border:1px solid rgba(255,61,129,.32)}
-.warnbox b{color:#fff}
+.modebar .cnt{font-size:10.5px;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:999px;background:rgba(var(--ov),.1);color:inherit}
+.modebar .chip.on .cnt{background:rgba(var(--ov-inv),.16)}
+.warnbox{margin:0 0 12px;padding:12px 14px;border-radius:10px;font-size:12.5px;line-height:1.85;color:var(--warn-fg);background:rgba(255,61,129,.09);border:1px solid rgba(255,61,129,.32)}
+.warnbox b{color:var(--text)}
 
 /* ================= card rows (mobile) ================= */
 .mlist{display:flex;flex-direction:column}
-.mrow{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05)}
-.mrow:active{background:rgba(255,255,255,.06)}
+.mrow{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(var(--ov),.05)}
+.mrow:active{background:rgba(var(--ov),.06)}
 .mrow .thumb{width:46px;height:46px;border-radius:8px}
 .mbody{flex:1;min-width:0}
 .mbody .tt{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -309,7 +348,7 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .mtail .done{font-size:16px;color:var(--ok);width:38px;text-align:center}
 
 /* ---- 左スワイプで削除（モバイルのマイメモ） ---- */
-.swipe{overflow:hidden;border-bottom:1px solid rgba(255,255,255,.05)}
+.swipe{overflow:hidden;border-bottom:1px solid rgba(var(--ov),.05)}
 .swipe .mrow{flex:1 0 100%;min-width:0;border-bottom:none}
 .swipe-inner{display:flex;align-items:stretch;width:100%;transform:translateX(0);transition:transform .22s cubic-bezier(.2,.85,.25,1)}
 .swipe.dragging .swipe-inner{transition:none}
@@ -327,8 +366,8 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .filterbar .cur .thumb{width:28px;height:28px;border-radius:50%;font-size:12px}
 .filterbar .cur span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .backchip{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:800;color:var(--muted);white-space:nowrap;transition:.15s}
-.backchip:hover{color:var(--text);border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.05)}
-.backchip.main{color:var(--text);border-color:rgba(255,255,255,.22)}
+.backchip:hover{color:var(--text);border-color:rgba(var(--ov),.25);background:rgba(var(--ov),.05)}
+.backchip.main{color:var(--text);border-color:rgba(var(--ov),.22)}
 
 /* ================= artist cards ================= */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:16px}
@@ -343,34 +382,38 @@ tbody tr:hover .rowbtn{border-color:var(--line)}
 .panel h3{margin:0 0 6px;font-size:15px}
 .panel .note{color:var(--muted);font-size:12.5px;line-height:1.75;margin:0 0 12px}
 .panel-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
-.btn{padding:9px 18px;border-radius:999px;font-size:13px;font-weight:800;transition:.15s;background:rgba(255,255,255,.1);border:1px solid var(--line)}
-.btn:hover{background:rgba(255,255,255,.16)}
+.btn{padding:9px 18px;border-radius:999px;font-size:13px;font-weight:800;transition:.15s;background:rgba(var(--ov),.1);border:1px solid var(--line)}
+.btn:hover{background:rgba(var(--ov),.16)}
 .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff}
 .btn.primary:hover{filter:brightness(1.12)}
 .btn.ghost{background:none}
-.btn.danger{color:#ff6b81;background:none;border-color:rgba(255,107,129,.3)}
+.btn.danger{color:var(--ng);background:none;border-color:rgba(255,107,129,.3)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;color:inherit}
-.dam-in{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);outline:none;font-size:14px}
+.dam-in{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--inset);outline:none;font-size:14px}
 .dam-in:focus{border-color:var(--accent)}
 .inrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px}
 .inrow .dam-in{flex:1;min-width:150px}
-.setbox{margin:6px 0 4px;padding:14px;border:1px dashed rgba(255,255,255,.16);border-radius:10px;background:rgba(139,92,246,.05)}
+.setbox{margin:6px 0 4px;padding:14px;border:1px dashed rgba(var(--ov),.16);border-radius:10px;background:rgba(139,92,246,.05)}
+/* 見た目テーマの切り替え（2択） */
+.seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;border:1px solid var(--line);background:rgba(var(--ov),.05)}
+.seg button{padding:8px 18px;border-radius:999px;font-size:13px;font-weight:800;color:var(--muted);transition:.15s}
+.seg button.on{background:var(--text);color:var(--bg)}
 .damid{display:flex;flex-wrap:wrap;gap:10px 28px;margin-bottom:14px}
 .damid .dl{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);margin-bottom:3px}
 .damid b{font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:.02em;word-break:break-all}
-.panel code{background:rgba(0,0,0,.4);padding:1px 5px;border-radius:4px;font-size:11.5px;word-break:break-all}
+.panel code{background:var(--inset);padding:1px 5px;border-radius:4px;font-size:11.5px;word-break:break-all}
 
 /* ================= quick add / sheet ================= */
 .qa{display:flex;align-items:center;gap:12px;background:var(--elev);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
 .qa .handle{display:none}
-.qa .disc2{width:46px;height:46px;border-radius:50%;flex:none;background:radial-gradient(circle at 50% 50%,#0a0a0f 0 20%,#2d2d3d 21% 100%);display:grid;place-items:center;font-size:19px;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;animation:spin 6s linear infinite}
+.qa .disc2{width:46px;height:46px;border-radius:50%;flex:none;background:radial-gradient(circle at 50% 50%,#0a0a0f 0 20%,#2d2d3d 21% 100%);display:grid;place-items:center;font-size:19px;box-shadow:0 0 0 1px rgba(var(--ov),.08) inset;animation:spin 6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .qa .fields{display:flex;gap:10px;flex:1;min-width:0;flex-wrap:wrap}
-.qa input[type=text]{width:100%;padding:10px 13px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);outline:none;font-size:14px;min-width:0}
-.qa input[type=text]:focus{border-color:var(--accent);background:rgba(255,255,255,.09)}
-.stepper{display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.05);flex:none}
+.qa input[type=text]{width:100%;padding:10px 13px;border-radius:9px;border:1px solid var(--line);background:rgba(var(--ov),.05);outline:none;font-size:14px;min-width:0}
+.qa input[type=text]:focus{border-color:var(--accent);background:rgba(var(--ov),.09)}
+.stepper{display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:9px;background:rgba(var(--ov),.05);flex:none}
 .stepper button{width:34px;height:40px;font-size:17px;font-weight:800;color:var(--muted);border-radius:8px}
-.stepper button:active{color:var(--text);background:rgba(255,255,255,.12)}
+.stepper button:active{color:var(--text);background:rgba(var(--ov),.12)}
 .stepper .val{min-width:54px;text-align:center;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
 .qa .lbl{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.1em;margin-bottom:4px;display:block}
 .qa .group{display:flex;flex-direction:column;min-width:0}
@@ -384,9 +427,9 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 }
 .suglist.down{top:calc(100% + 6px);bottom:auto}
 .suglist.on{display:block}
-.sugitem{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
+.sugitem{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(var(--ov),.04)}
 .sugitem:last-child{border-bottom:none}
-.sugitem.active,.sugitem:hover{background:rgba(255,255,255,.09)}
+.sugitem.active,.sugitem:hover{background:rgba(var(--ov),.09)}
 .sugitem .thumb{width:34px;height:34px;border-radius:6px;font-size:13px}
 .sugitem .sm{min-width:0;flex:1}
 .sugitem .s1{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -394,7 +437,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .sugitem mark{background:none;color:var(--accent);font-weight:800}
 .sugsrc{font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:2px 6px;border-radius:5px;flex:none;border:1px solid var(--line);color:var(--muted)}
 .sugsrc.local{color:var(--ok);border-color:rgba(61,220,151,.3)}
-.sughead{padding:7px 12px;font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--muted);background:rgba(0,0,0,.25)}
+.sughead{padding:7px 12px;font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--muted);background:var(--inset)}
 
 /* ================= mobile chrome ================= */
 .tabbar,.fab,.scrim{display:none}
@@ -415,16 +458,16 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 .dlg-h{padding:20px 22px 0;font-size:17px;font-weight:800}
 .dlg-b{padding:18px 22px;display:flex;flex-direction:column;gap:14px}
 .field label{display:block;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.1em;margin-bottom:6px}
-.field input,.field textarea{width:100%;padding:11px 13px;border-radius:9px;border:1px solid var(--line);background:rgba(0,0,0,.3);outline:none;font-size:15px}
+.field input,.field textarea{width:100%;padding:11px 13px;border-radius:9px;border:1px solid var(--line);background:var(--inset);outline:none;font-size:15px}
 .field textarea{min-height:76px;resize:vertical}
 .field input:focus,.field textarea:focus{border-color:var(--accent)}
 .dlg-f{padding:0 22px 20px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .dlg-f .left{margin-right:auto}
-.toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);z-index:99;background:#f3f3f7;color:#0a0a0f;padding:11px 22px;border-radius:999px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:88vw;text-align:center;display:flex;align-items:center;gap:14px}
+.toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);z-index:99;background:var(--text);color:var(--bg);padding:11px 22px;border-radius:999px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:88vw;text-align:center;display:flex;align-items:center;gap:14px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast #toast-msg{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 親が pointer-events:none でも、このボタンだけは押せるようにする */
-.toast-act{pointer-events:auto;flex:none;margin:-4px -12px -4px 0;padding:7px 14px;border-radius:999px;background:#0a0a0f;color:#f3f3f7;font-size:12px;font-weight:800;letter-spacing:.02em}
+.toast-act{pointer-events:auto;flex:none;margin:-4px -12px -4px 0;padding:7px 14px;border-radius:999px;background:var(--bg);color:var(--text);font-size:12px;font-weight:800;letter-spacing:.02em}
 .toast-act:active{opacity:.72}
 .toast-act[hidden]{display:none}
 
@@ -435,8 +478,9 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   .app{grid-template-columns:1fr;grid-template-rows:1fr;gap:0;padding:6px;padding-bottom:0}
   .sidebar{display:none}
   .main{border-radius:12px}
-  .topbar{padding:10px 14px;gap:8px}
   .hero{padding:10px 16px 2px}
+  .searchbar{padding:2px 16px 8px}
+  .search{max-width:none}
   .hero h1{font-size:25px}
   .hero p{font-size:12px;margin-top:5px}
   .content{padding:10px 16px calc(var(--tabh) + 46px + env(safe-area-inset-bottom))}
@@ -451,7 +495,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 
   .tabbar{
     display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
-    background:rgba(12,12,18,.94);backdrop-filter:blur(18px);border-top:1px solid var(--line);
+    background:var(--bar);backdrop-filter:blur(18px);border-top:1px solid var(--line);
     padding-bottom:env(safe-area-inset-bottom);
   }
   .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--tabh);font-size:10px;font-weight:800;color:var(--muted)}
@@ -479,7 +523,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
     padding:8px 16px calc(18px + env(safe-area-inset-bottom));
     max-height:88dvh;overflow-y:auto;
   }
-  .qa .handle{display:block;width:40px;height:4px;border-radius:2px;background:#3a3a48;margin:2px auto 6px;flex:none}
+  .qa .handle{display:block;width:40px;height:4px;border-radius:2px;background:var(--dim);margin:2px auto 6px;flex:none}
   .qa .disc2{display:none}
   .qa .fields{flex-direction:column;gap:13px;flex:none}
   .qa .group{flex:none !important;width:100%}
@@ -500,6 +544,15 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   .toast{bottom:calc(var(--tabh) + 84px + env(safe-area-inset-bottom))}
 }
 </style>
+<script>
+/* 保存済みのテーマは本体スクリプトより先に当てる（暗→明のちらつきを防ぐ） */
+try{
+  if(JSON.parse(localStorage.getItem('karaokeMemo.theme.v1')) === 'light'){
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.querySelector('meta[name=theme-color]').setAttribute('content', '#f2f2f6');
+  }
+}catch(e){}
+</script>
 </head>
 <body>
 
@@ -515,19 +568,11 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
       <button data-view="memo" class="active"><span class="ico">♪</span>マイメモ</button>
       <button data-view="artist"><span class="ico">◎</span>アーティスト</button>
       <button data-view="history"><span class="ico">⟲</span>歌唱履歴（DAM★とも）</button>
+      <button data-view="settings"><span class="ico">⚙</span>設定</button>
     </nav>
 
-    <div>
-      <div class="side-title">ライブラリ</div>
-      <div class="stats">
-        <div class="stat"><span>登録曲</span><b id="st-songs">0</b></div>
-        <div class="stat"><span>お気に入り</span><b id="st-fav">0</b></div>
-        <div class="stat"><span>アーティスト</span><b id="st-artists">0</b></div>
-        <div class="stat"><span>履歴レコード</span><b id="st-hist">0</b></div>
-      </div>
-    </div>
-
     <div class="side-foot">
+      <button id="btn-userinfo">◍　ユーザ情報</button>
       <button id="btn-online">◌　オンライン候補：OFF</button>
       <button id="btn-export">⤓　バックアップを書き出す</button>
       <button id="btn-import">⤒　バックアップを読み込む</button>
@@ -538,21 +583,18 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
 
   <!-- ============ MAIN ============ -->
   <main class="main" id="main">
-    <div class="topbar" id="topbar">
-      <div class="search">
-        <span class="mag">⌕</span>
-        <input type="text" id="q" placeholder="曲名・アーティストで検索">
-      </div>
-      <button class="chip" id="chip-fav">★</button>
-      <div class="spacer"></div>
-    </div>
-
     <div class="hero">
       <h1 id="hero-t">マイメモ</h1>
       <p id="hero-s"></p>
     </div>
 
     <div class="sortbar" id="sortbar"></div>
+    <div class="searchbar" id="searchbar" hidden>
+      <div class="search">
+        <span class="mag">⌕</span>
+        <input type="text" id="q" placeholder="曲名・アーティストで検索">
+      </div>
+    </div>
     <div class="content" id="content"></div>
   </main>
 
@@ -603,7 +645,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   <button data-view="memo" class="active"><span class="ti">♪</span>マイメモ</button>
   <button data-view="artist"><span class="ti">◎</span>アーティスト</button>
   <button data-view="history"><span class="ti">⟲</span>履歴</button>
-  <button data-view="more"><span class="ti">≡</span>その他</button>
+  <button data-view="settings"><span class="ti">⚙</span>設定</button>
 </nav>
 
 <!-- ============ EDIT DIALOG ============ -->
@@ -618,6 +660,7 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
         <button id="d-minus">−</button><div class="val" id="d-keyval">±0</div><button id="d-plus">＋</button>
       </div>
       <div class="ks" id="d-keyscale"></div>
+      <div class="rangebox" id="d-range" hidden></div>
     </div>
     <div class="field"><label>メモ</label><textarea id="d-memo" placeholder="キー調整のコツ、歌いにくい箇所など"></textarea></div>
   </div>
@@ -635,6 +678,15 @@ dialog::backdrop{background:rgba(0,0,0,.62);backdrop-filter:blur(3px)}
   <div class="dlg-f">
     <button class="btn primary left" id="h-tomemo">＋ マイメモへ追加</button>
     <button class="btn ghost" id="h-close">閉じる</button>
+  </div>
+</dialog>
+
+<!-- ============ USER INFO DIALOG ============ -->
+<dialog id="udlg">
+  <div class="dlg-h">ユーザ情報</div>
+  <div class="dlg-b" id="u-body"></div>
+  <div class="dlg-f">
+    <button class="btn ghost" id="u-close">閉じる</button>
   </div>
 </dialog>
 
@@ -656,6 +708,7 @@ const LS_PROXY  = 'karaokeMemo.proxy.v1';      // 取得proxy(Cloudflare Worker�
 const LS_HMODE  = 'karaokeMemo.histMode.v1';   // 歌唱履歴で選んでいる採点種別
 const LS_FETCH  = 'karaokeMemo.lastFetch.v1';  // 最後に自動取得した時刻
 const LS_RANGES = 'karaokeMemo.songRanges.v1'; // 手入力した曲の音域 { "曲|歌手": {high,low} }
+const LS_THEME  = 'karaokeMemo.theme.v1';      // 'dark' | 'light'
 const FETCH_LABEL = '⟳ 精密採点履歴を取得';
 // ▼ 共有Worker(Cloudflare)のURL。設定済みなので配布相手は設定不要でボタン取得できます。
 //   変更する場合はここを差し替えてください（末尾スラッシュ無し）。
@@ -678,13 +731,27 @@ let songRanges = load(LS_RANGES, {});  // 手入力した曲の音域
 // パスワード保護は廃止。復号できない残骸を持ち続けても意味がないので捨てる
 if(localStorage.getItem(LS_DAMENC)) localStorage.removeItem(LS_DAMENC);
 
+/* 見た目のテーマ。'dark' が既定（従来の配色）、'light' が通常モード */
+let theme = load(LS_THEME, 'dark') === 'light' ? 'light' : 'dark';
+function applyTheme(){
+  const root = document.documentElement;
+  if(theme === 'light') root.setAttribute('data-theme', 'light');
+  else root.removeAttribute('data-theme');
+  document.querySelector('meta[name=theme-color]')
+    .setAttribute('content', theme === 'light' ? '#f2f2f6' : '#0a0a0f');
+}
+function setTheme(v){
+  theme = v === 'light' ? 'light' : 'dark';
+  localStorage.setItem(LS_THEME, JSON.stringify(theme));
+  applyTheme(); render();
+}
+
 /* 採点種別。DAM側の mode 文字列をそのまま使う */
 const MODE_ORDER = ['精密採点AiHeart', '精密採点Ai', '精密採点DX-G'];
 let histMode = load(LS_HMODE, 'all');  // 'all' または MODE_ORDER のいずれか
 
 let view    = 'memo';
 let query   = '';
-let favOnly = false;
 let artistFilter = null;               // アーティストを選んで絞り込み中のとき、その名前
 let sortS   = { key:'createdAt', dir:'desc' };
 let sortH   = { key:'lastAt',    dir:'desc' };
@@ -1384,10 +1451,7 @@ function damDeleteAccount(){
 function filterList(list){
   const q = norm(query);
   return list.filter(x => {
-    if(view === 'memo'){
-      if(favOnly && !x.fav) return false;
-      if(artistFilter && norm(x.artist || '(未設定)') !== norm(artistFilter)) return false;
-    }
+    if(view === 'memo' && artistFilter && norm(x.artist || '(未設定)') !== norm(artistFilter)) return false;
     if(!q) return true;
     return norm(x.title).includes(q) || norm(x.artist).includes(q) || norm(x.memo).includes(q);
   });
@@ -1420,22 +1484,19 @@ function clearArtistFilter(){
    描画
    ========================================================= */
 function render(){
-  document.getElementById('st-songs').textContent   = songs.length;
-  document.getElementById('st-fav').textContent     = songs.filter(s => s.fav).length;
-  document.getElementById('st-artists').textContent = new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size;
-  document.getElementById('st-hist').textContent    = history.length;
   document.getElementById('btn-online').textContent = (online ? '●' : '◌') + '　オンライン候補：' + (online ? 'ON' : 'OFF');
   document.getElementById('btn-online').classList.toggle('on', online);
 
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  document.getElementById('chip-fav').classList.toggle('on', favOnly);
-  document.getElementById('chip-fav').textContent = isMobile ? (favOnly ? '★' : '☆') : '★ お気に入りのみ';
-  document.getElementById('chip-fav').style.display = view === 'memo' ? '' : 'none';
+
+  // 検索はマイメモとアーティストだけ。他のタブでは出さない
+  document.getElementById('searchbar').hidden = !SEARCHABLE.includes(view);
 
   renderSortbar();
-  ({ memo:renderMemo, artist:renderArtist, history:renderHistory, more:renderMore })[view]();
+  ({ memo:renderMemo, artist:renderArtist, history:renderHistory, settings:renderSettings })[view]();
 }
+const SEARCHABLE = ['memo', 'artist'];
 
 /* ---- モバイル用ソートチップ ---- */
 const SORTDEFS = {
@@ -1444,9 +1505,9 @@ const SORTDEFS = {
 };
 function renderSortbar(){
   const bar = document.getElementById('sortbar');
-  // 一覧の中へ移していることがあるので、content を作り直す前に定位置（hero の下）へ戻す。
+  // 一覧の中へ移していることがあるので、content を作り直す前に定位置（検索バーの上）へ戻す。
   // 戻さないと innerHTML の差し替えでチップごと消えてしまう
-  document.getElementById('content').before(bar);
+  document.getElementById('searchbar').before(bar);
   const defs = SORTDEFS[view];
   if(!isMobile || !defs){ bar.innerHTML = ''; bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
@@ -1565,7 +1626,7 @@ function renderArtist(){
     const e = map.get(k); e.count++; if(s.fav) e.fav++;
   }
   const list = [...map.values()].sort((a,b) => b.count - a.count || a.name.localeCompare(b.name,'ja'));
-  document.getElementById('hero-s').textContent = `${list.length} 組　—　${isMobile ? 'タップ' : 'カードを押す'}でその曲だけ表示（上のボタンでここへ戻れます）`;
+  document.getElementById('hero-s').textContent = '';
 
   const c = document.getElementById('content');
   c.innerHTML = list.length ? `<div class="grid">${list.map(a => `
@@ -1659,69 +1720,29 @@ function renderHistory(){
   const canFetch = backendMode === 'local' || backendMode === 'proxy';
   const proxyDown = backendMode === 'proxy' && proxyAlive === false;
 
+  // アカウントと取得サーバーの設定は設定タブへ移した。
+  // ここには取得ボタンだけを置き、連携していないときは設定タブへ案内する
   let accPanel;
   if(dam){
-    // ── 連携中 ──
-    // 一度登録すれば連携は続くので、普段は取得ボタンだけを出し、
-    // アカウントの詳細は畳んでおく
     accPanel = `
     <div class="syncbar">
       ${canFetch ? `<button class="btn primary big" id="dam-fetch">${FETCH_LABEL}</button>`
                  : `<span class="dam-fetch-msg">取得サーバーを確認中…</span>`}
-      <div class="syncinfo">
-        <b>${history.length ? `${history.length} 件を保存中` : 'まだ取得していません'}</b>
-        <span>${lastFetch ? `最終取得 ${fmtDateTime(lastFetch)}` : 'ボタンを押すと取り込みます'}</span>
-      </div>
       <span class="dam-fetch-msg" id="dam-fetch-msg"></span>
     </div>
     ${proxyDown ? `
     <p class="warnbox">
       ⚠️ 取得サーバー(proxy)に接続できません（<code>${esc(proxyUrl)}</code>）。<br>
-      Cloudflare Worker が<b>まだデプロイされていない</b>か、URLが違う可能性があります。
-    </p>` : ''}
-    <details class="setbox" style="margin:0 0 16px">
-      <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">
-        ⚙ アカウントと取得サーバーの設定（連携中：${esc(dam.damtomoId)}）
-      </summary>
-      <div class="damid" style="margin-top:12px">
-        <div><span class="dl">DAM★とも ID</span><b>${esc(dam.damtomoId)}</b></div>
-        ${dam.cardNo ? `<div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>` : ''}
-      </div>
-      <p class="note" style="margin:0 0 10px">DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。</p>
-      ${backendMode !== 'local' ? `
-      <div class="inrow">
-        <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
-        <button class="btn" id="dam-proxy-save">保存</button>
-      </div>` : ''}
-      <div class="panel-actions" style="margin-top:12px">
-        <button class="btn ghost" id="dam-delete">アカウントを削除</button>
-      </div>
-    </details>`;
+      設定タブの「DAM★とも連携」から確認できます。
+    </p>` : ''}`;
   } else {                                          // ── 未登録 ──
     accPanel = `
     <div class="panel">
-      <h3>DAM★とも アカウントを登録</h3>
-      <p class="note">
-        DAM★とものプロフィールURL <code>…Profile.do?damtomoId=<b>MTIzNDU2Nzg5</b></code> の
-        <b>= より後ろ</b>があなたのアカウントコードです。URLをまるごと貼っても、会員番号（数字）でも自動判別します。
-      </p>
-      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false">
+      <h3>DAM★とも と連携すると取り込めます</h3>
+      <p class="note">設定タブでアカウントを登録すると、このページから精密採点履歴を取得できるようになります。</p>
       <div class="panel-actions">
-        <button class="btn primary" id="dam-set">登録する</button>
-        <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
+        <button class="btn primary" data-goview="settings">設定を開く</button>
       </div>
-      <p class="note" style="margin:12px 0 0">一度登録すれば、次回からは自動で連携された状態になります。</p>
-      ${backendMode !== 'local' ? `
-      <details class="setbox" ${backendMode === 'none' || proxyDown ? 'open' : ''} style="margin:12px 0 0">
-        <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
-        <p class="note" style="margin:8px 0">
-          ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
-        </p>
-        <div class="inrow">
-          <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
-          <button class="btn" id="dam-proxy-save">保存</button>
-        </div>
-      </details>` : ''}
     </div>`;
   }
 
@@ -1785,16 +1806,6 @@ function renderHistory(){
   const fetchBtn = document.getElementById('dam-fetch');
   if(fetchBtn) fetchBtn.onclick = () => fetchDamHistory(fetchBtn);
 
-  const proxySave = document.getElementById('dam-proxy-save');
-  if(proxySave) proxySave.onclick = async () => {
-    const v = ((document.getElementById('dam-proxy') || {}).value || '').trim().replace(/\/+$/, '');
-    proxyUrl = v || DEFAULT_PROXY;
-    if(v) localStorage.setItem(LS_PROXY, v); else localStorage.removeItem(LS_PROXY);
-    toast(v ? '取得サーバーを保存しました。疎通を確認中…' : '取得サーバー設定を消去しました');
-    await detectBackend();                        // 保存したURLに実際に届くか確かめる
-    if(backendMode === 'proxy') toast(proxyAlive ? '取得サーバーに接続できました' : '取得サーバーに接続できませんでした');
-  };
-
   const histClear = document.getElementById('hist-clear');
   if(histClear) histClear.onclick = () => {
     if(!history.length) return;
@@ -1802,31 +1813,67 @@ function renderHistory(){
       history = []; invalidateRangeIndex(); save(); render(); toast('履歴を削除しました');
     }
   };
-
-  const regBtn = document.getElementById('dam-set');
-  if(regBtn){
-    regBtn.onclick = damRegister;
-    const el = document.getElementById('dam-input');
-    if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') damRegister(); });
-  }
-  const delBtn = document.getElementById('dam-delete');
-  if(delBtn) delBtn.onclick = damDeleteAccount;
 }
 
-/* ---- その他（モバイル用の設定タブ） ---- */
-function renderMore(){
-  document.getElementById('hero-t').textContent = 'その他';
-  document.getElementById('hero-s').textContent = 'ライブラリの状況とデータの入出力';
+/* ---- 設定 ----
+   連携やproxyの設定はここだけに置く。ふだん触るものではないので、
+   すぐ変えられる場所（履歴タブ）には出さず、折りたたんだ中に入れておく */
+function renderSettings(){
+  document.getElementById('hero-t').textContent = '設定';
+  document.getElementById('hero-s').textContent = '';
+
+  const proxyDown = backendMode === 'proxy' && proxyAlive === false;
+
   document.getElementById('content').innerHTML = `
     <div class="panel">
-      <h3>ライブラリ</h3>
-      <div class="stats" style="padding:8px 0 0">
-        <div class="stat"><span>登録曲</span><b>${songs.length}</b></div>
-        <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
-        <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
-        <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
-        <div class="stat"><span>DAM★とも ID</span><b>${dam ? esc(dam.damtomoId) : '未登録'}</b></div>
+      <h3>ユーザ情報</h3>
+      <p class="note">登録曲やアーティストの数、DAM★との連携状況をまとめて見られます。</p>
+      <div class="panel-actions">
+        <button class="btn" id="s-userinfo">ユーザ情報を見る</button>
       </div>
+    </div>
+    <div class="panel">
+      <h3>見た目</h3>
+      <p class="note">通常モードは明るい配色、ダークモードは暗い配色です。この端末にだけ保存されます。</p>
+      <div class="seg" id="s-theme">
+        <button data-theme="light" class="${theme === 'light' ? 'on' : ''}">通常モード</button>
+        <button data-theme="dark" class="${theme === 'dark' ? 'on' : ''}">ダークモード</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>DAM★とも連携</h3>
+      <div class="damid">
+        <div><span class="dl">連携状態</span><b>${dam ? esc(dam.damtomoId) : '未登録'}</b></div>
+        ${dam && dam.cardNo ? `<div><span class="dl">会員番号</span><b>${esc(dam.cardNo)}</b></div>` : ''}
+        <div><span class="dl">取得サーバー</span><b style="font-size:13px">${
+          backendMode === 'local' ? 'ローカルサーバー'
+          : proxyDown ? '接続できません'
+          : backendMode === 'proxy' ? '接続できています'
+          : '確認中…'}</b></div>
+      </div>
+      ${dam ? `
+      <p class="note" style="margin:0">DX-G / Ai / AiHeart を全ページ取得します（プロフィールが<b>公開設定</b>である必要があります）。取得は歌唱履歴タブのボタンから行います。</p>
+      <details class="setbox">
+        <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">⚙ アカウントと取得サーバーの設定</summary>
+        ${proxySettingHtml()}
+        <div class="panel-actions" style="margin-top:12px">
+          <button class="btn ghost" id="dam-delete">アカウントを削除</button>
+        </div>
+      </details>` : `
+      <p class="note">
+        DAM★とものプロフィールURL <code>…Profile.do?damtomoId=<b>MTIzNDU2Nzg5</b></code> の
+        <b>= より後ろ</b>があなたのアカウントコードです。URLをまるごと貼っても、会員番号（数字）でも自動判別します。
+      </p>
+      <input type="text" id="dam-input" class="dam-in" placeholder="例）MTIzNDU2Nzg5" autocomplete="off" spellcheck="false">
+      <div class="panel-actions">
+        <button class="btn primary" id="dam-set">登録する</button>
+        <span style="color:var(--muted);font-size:12px" id="dam-msg"></span>
+      </div>
+      <p class="note" style="margin:12px 0 0">一度登録すれば、次回からは自動で連携された状態になります。</p>
+      <details class="setbox" ${backendMode === 'none' || proxyDown ? 'open' : ''}>
+        <summary style="cursor:pointer;font-weight:800;color:var(--muted);font-size:12px">🌐 取得サーバー(proxy)の設定</summary>
+        ${proxySettingHtml()}
+      </details>`}
     </div>
     <div class="panel">
       <h3>入力候補</h3>
@@ -1845,10 +1892,62 @@ function renderMore(){
         <button class="btn" id="m-csv">CSV書き出し</button>
       </div>
     </div>`;
+
+  document.getElementById('s-userinfo').onclick = openUserInfo;
+  document.getElementById('s-theme').onclick = e => {
+    const b = e.target.closest('button[data-theme]');
+    if(b) setTheme(b.dataset.theme);
+  };
   document.getElementById('m-online').onclick = toggleOnline;
   document.getElementById('m-export').onclick = doExport;
   document.getElementById('m-import').onclick = () => document.getElementById('file-import').click();
   document.getElementById('m-csv').onclick    = doCsv;
+
+  const regBtn = document.getElementById('dam-set');
+  if(regBtn){
+    regBtn.onclick = damRegister;
+    document.getElementById('dam-input')
+      .addEventListener('keydown', e => { if(e.key === 'Enter') damRegister(); });
+  }
+  const delBtn = document.getElementById('dam-delete');
+  if(delBtn) delBtn.onclick = damDeleteAccount;
+
+  const proxySave = document.getElementById('dam-proxy-save');
+  if(proxySave) proxySave.onclick = async () => {
+    const v = ((document.getElementById('dam-proxy') || {}).value || '').trim().replace(/\/+$/, '');
+    proxyUrl = v || DEFAULT_PROXY;
+    if(v) localStorage.setItem(LS_PROXY, v); else localStorage.removeItem(LS_PROXY);
+    toast(v ? '取得サーバーを保存しました。疎通を確認中…' : '取得サーバー設定を消去しました');
+    await detectBackend();                        // 保存したURLに実際に届くか確かめる
+    if(backendMode === 'proxy') toast(proxyAlive ? '取得サーバーに接続できました' : '取得サーバーに接続できませんでした');
+  };
+}
+
+/* proxyのURL欄。ローカルサーバーで動かしているときは要らない */
+function proxySettingHtml(){
+  if(backendMode === 'local') return '<p class="note" style="margin:8px 0 0">ローカルサーバー経由で取得しています。proxyの設定は不要です。</p>';
+  return `
+    <p class="note" style="margin:8px 0">
+      ${proxyUrl ? '設定済みです。通常は変更不要です。' : 'ボタンで取得するには proxy(Cloudflare Worker)のURLが必要です。手順は同梱の <code>README.md</code> を参照。'}
+    </p>
+    <div class="inrow">
+      <input type="text" id="dam-proxy" class="dam-in" placeholder="https://xxxx.xxxx.workers.dev" value="${esc(proxyUrl)}" autocomplete="off" spellcheck="false">
+      <button class="btn" id="dam-proxy-save">保存</button>
+    </div>`;
+}
+
+/* ---- ユーザ情報（ライブラリの状況） ---- */
+function openUserInfo(){
+  document.getElementById('u-body').innerHTML = `
+    <div class="stats" style="padding:0">
+      <div class="stat"><span>登録曲</span><b>${songs.length}</b></div>
+      <div class="stat"><span>お気に入り</span><b>${songs.filter(s => s.fav).length}</b></div>
+      <div class="stat"><span>アーティスト</span><b>${new Set(songs.map(s => norm(s.artist)).filter(Boolean)).size}</b></div>
+      <div class="stat"><span>履歴レコード</span><b>${history.length}</b></div>
+      <div class="stat"><span>最終取得</span><b style="font-size:14px">${lastFetch ? fmtDateTime(lastFetch) : '—'}</b></div>
+      <div class="stat"><span>DAM★とも ID</span><b style="font-size:14px;word-break:break-all">${dam ? esc(dam.damtomoId) : '未登録'}</b></div>
+    </div>`;
+  document.getElementById('udlg').showModal();
 }
 
 /* 取得した歌唱日（"2026-07-28" や "2026年7月28日" など）をミリ秒に直す */
@@ -1916,6 +2015,8 @@ function openEdit(id){
   document.getElementById('d-artist').value = s.artist;
   document.getElementById('d-memo').value   = s.memo;
   document.getElementById('d-keyval').textContent = fmtKey(dKey);
+  renderKeyScale('d-keyscale', dKey);
+  renderRangeBox('d');          // 保存済みのメモでも音域とキーの兼ね合いを見せる
   document.getElementById('dlg').showModal();
 }
 
@@ -2313,7 +2414,8 @@ document.getElementById('tabbar').onclick = e => {
   view = b.dataset.view; closeSheet(); render(); document.getElementById('main').scrollTop = 0;
 };
 document.getElementById('q').oninput = e => { query = e.target.value; render(); };
-document.getElementById('chip-fav').onclick = () => { favOnly = !favOnly; render(); };
+document.getElementById('btn-userinfo').onclick = openUserInfo;
+document.getElementById('u-close').onclick = () => document.getElementById('udlg').close();
 document.getElementById('fab').onclick = openSheet;
 scrim.onclick = closeSheet;
 document.getElementById('sheet-handle').onclick = closeSheet;
@@ -2330,6 +2432,9 @@ document.getElementById('content').addEventListener('click', e => {
 
   const sortTh = e.target.closest('th[data-sort]');
   if(sortTh){ toggleSort(view === 'history' ? sortH : sortS, sortTh.dataset.sort, sortTh.dataset.dir); return; }
+
+  const go = e.target.closest('[data-goview]');
+  if(go){ view = go.dataset.goview; render(); document.getElementById('main').scrollTop = 0; return; }
 
   const back = e.target.closest('[data-act="artist-back"],[data-act="artist-clear"]');
   if(back){
@@ -2385,32 +2490,79 @@ document.getElementById('content').addEventListener('click', e => {
    ========================================================= */
 const KEY_MIN = -12, KEY_MAX = 12;
 
+/* 目盛りは一度だけ組み立て、以降は選択位置のクラスだけ付け替える。
+   毎回作り直すと、スワイプ中に指の下の要素が消えて追従できなくなる */
 function renderKeyScale(elId, value){
   const el = document.getElementById(elId);
   if(!el) return;
-  const ticks = [];
-  for(let k = KEY_MIN; k <= KEY_MAX; k++){
-    const cls = [
-      k === 0 ? 'center' : '',
-      k === value ? 'on' : '',
-      k !== 0 && k % 6 === 0 ? 'major' : '',
-    ].filter(Boolean).join(' ');
-    ticks.push(`<button type="button" class="ks-tick ${cls}" data-k="${k}" aria-label="キー ${fmtKey(k)}"><i>★</i></button>`);
+  let track = el.querySelector('.ks-track');
+  if(!track){
+    const ticks = [];
+    for(let k = KEY_MIN; k <= KEY_MAX; k++){
+      const cls = [
+        k === 0 ? 'center' : '',
+        k !== 0 && k % 6 === 0 ? 'major' : '',
+      ].filter(Boolean).join(' ');
+      ticks.push(`<button type="button" class="ks-tick ${cls}" data-k="${k}" aria-label="キー ${fmtKey(k)}"><i>★</i></button>`);
+    }
+    el.innerHTML = `
+      <span class="ks-end">♭</span>
+      <div class="ks-track">${ticks.join('')}<span class="ks-base">標準</span></div>
+      <span class="ks-end">♯</span>`;
+    track = el.querySelector('.ks-track');
   }
-  el.innerHTML = `
-    <span class="ks-end">♭</span>
-    <div class="ks-track">${ticks.join('')}<span class="ks-base">標準</span></div>
-    <span class="ks-end">♯</span>`;
+  for(const t of track.querySelectorAll('.ks-tick')){
+    t.classList.toggle('on', Number(t.dataset.k) === value);
+  }
 }
 
-/* 目盛りをタップしたら、その値に飛ばす */
+/* 目盛りはタップでも、指（マウス）を横に滑らせても動かせる */
 function attachKeyScale(elId, onPick){
   const el = document.getElementById(elId);
   if(!el) return;
-  el.addEventListener('click', e => {
-    const t = e.target.closest('.ks-tick');
-    if(t) onPick(Number(t.dataset.k));
+
+  // 指を置いた瞬間には動かさない。縦スクロールのつもりで触れただけの人が
+  // キーを変えてしまわないよう、横に動いたか、離した（＝タップ）ときに確定する
+  let track = null, last = null, startX = 0, moved = false;
+
+  /* 目盛りの中心が端に来るよう、両端を半目盛りぶん詰めて換算する */
+  const valueAt = clientX => {
+    const r = track.getBoundingClientRect();
+    const step = r.width / (KEY_MAX - KEY_MIN + 1);
+    if(!(step > 0)) return null;
+    const k = Math.round((clientX - r.left - step / 2) / step) + KEY_MIN;
+    return Math.max(KEY_MIN, Math.min(KEY_MAX, k));
+  };
+  const moveTo = clientX => {
+    const k = valueAt(clientX);
+    if(k == null || k === last) return;
+    last = k; onPick(k);
+  };
+  const stop = () => {
+    if(!track) return;
+    track.classList.remove('dragging');
+    track = null; last = null;
+  };
+
+  el.addEventListener('pointerdown', e => {
+    const t = e.target.closest('.ks-track'); if(!t) return;
+    e.preventDefault();                       // ドラッグ中に文字が選択されるのを防ぐ
+    track = t; last = null; startX = e.clientX; moved = false;
+    el.setPointerCapture(e.pointerId);        // 目盛りの外まで滑らせても追える
   });
+  el.addEventListener('pointermove', e => {
+    if(!track) return;
+    if(!moved){
+      if(Math.abs(e.clientX - startX) < 4) return;
+      moved = true; track.classList.add('dragging');
+    }
+    moveTo(e.clientX);
+  });
+  el.addEventListener('pointerup', e => {
+    if(track && !moved) moveTo(e.clientX);    // 動かさずに離した＝タップ
+    stop();
+  });
+  el.addEventListener('pointercancel', stop);   // 縦スクロールに取られたとき
 }
 
 /* クイック追加 */
@@ -2440,10 +2592,10 @@ function updateKeyHint(){
   const hint = document.getElementById('qa-keyhint');
   const title  = document.getElementById('qa-title').value.trim();
   const artist = document.getElementById('qa-artist').value.trim();
-  if(!title && !artist){ hint.hidden = true; renderRangeBox(null, ''); return; }
+  if(!title && !artist){ hint.hidden = true; renderRangeBox('qa'); return; }
 
   const sug = suggestKeyFor(title, artist);
-  renderRangeBox(title, artist);
+  renderRangeBox('qa');
 
   if(!sug.reason || sug.key === qaKey){ hint.hidden = true; }
   else {
@@ -2458,21 +2610,34 @@ function updateKeyHint(){
   if(!keyTouched && sug.strong && sug.key !== qaKey){ setQaKey(sug.key); hint.hidden = true; }
 }
 
+/* 音域比較はクイック追加(qa)と編集ダイアログ(d)の両方で使う。
+   要素のidを "qa-" / "d-" の接頭辞で揃え、キーの読み書きだけをここで切り替える */
+const RANGE_UI = {
+  qa: { key: () => qaKey, apply: k => { setQaKey(k); keyTouched = true; updateKeyHint(); } },
+  d:  { key: () => dKey,  apply: k => setDKey(k) },
+};
+function refreshRangeBox(p){ if(p === 'qa') updateKeyHint(); else renderRangeBox(p); }
+
 /** 曲の音域と自分の声域を並べて見せる。音域が未知なら手入力を促す */
-function renderRangeBox(title, artist){
-  const box = document.getElementById('qa-range');
-  if(!title){ box.hidden = true; return; }
+function renderRangeBox(p){
+  const box = document.getElementById(p + '-range');
+  if(!box) return;
+  const hide = () => { box.hidden = true; delete box.dataset.miss; };
+
+  const title  = document.getElementById(p + '-title').value.trim();
+  const artist = document.getElementById(p + '-artist').value.trim();
+  const key    = RANGE_UI[p].key();
+  if(!title){ hide(); return; }
 
   const me = myVocalRange();
-  if(me.comfortHigh == null){        // 声域が分からなければ比較しようがない
-    box.hidden = true; return;
-  }
+  if(me.comfortHigh == null){ hide(); return; }   // 声域が分からなければ比較しようがない
+
   const song = songRangeOf(title, artist);
   const id = norm(title) + '|' + norm(artist);
 
   if(!song){
     // キーを上下しただけで再描画すると、入力中のURLや音名が消えてしまう
-    if(box.dataset.miss === id) return;
+    if(box.dataset.miss === id){ box.hidden = false; return; }
     box.dataset.miss = id;
     box.innerHTML = `
       <div class="rb-head">この曲の音域が未登録です</div>
@@ -2481,23 +2646,23 @@ function renderRangeBox(title, artist){
         取得した音域はこの端末に保存され、次回以降は問い合わせません。
         見つからない場合は下の欄に手入力できます。</p>
       <div class="panel-actions" style="margin:0 0 8px">
-        <button type="button" class="btn" id="qa-rlookup" data-id="${esc(id)}">🔎 音域を調べる</button>
+        <button type="button" class="btn" id="${p}-rlookup" data-id="${esc(id)}">🔎 音域を調べる</button>
       </div>
       <details class="rb-more">
         <summary>見つからないとき</summary>
         <p class="rb-note" style="margin:8px 0 6px">音域サイトで見つけたページのURLを貼ると、そこから読み取ります。</p>
         <div class="rb-in">
-          <input type="text" id="qa-rurl" placeholder="https://keytube.net/song/detail/23502" autocomplete="off" spellcheck="false">
-          <button type="button" id="qa-rfromurl" data-id="${esc(id)}">URLから取得</button>
+          <input type="text" id="${p}-rurl" placeholder="https://keytube.net/song/detail/23502" autocomplete="off" spellcheck="false">
+          <button type="button" id="${p}-rfromurl" data-id="${esc(id)}">URLから取得</button>
         </div>
         <p class="rb-note" style="margin:8px 0 6px">音名が分かっていれば直接入力もできます。</p>
         <div class="rb-in">
-          <input type="text" id="qa-rlow"  placeholder="最低音 例）mid1D#" autocomplete="off" spellcheck="false">
-          <input type="text" id="qa-rhigh" placeholder="最高音 例）hiA" autocomplete="off" spellcheck="false">
-          <button type="button" id="qa-rsave" data-id="${esc(id)}">手入力で登録</button>
+          <input type="text" id="${p}-rlow"  placeholder="最低音 例）mid1D#" autocomplete="off" spellcheck="false">
+          <input type="text" id="${p}-rhigh" placeholder="最高音 例）hiA" autocomplete="off" spellcheck="false">
+          <button type="button" id="${p}-rsave" data-id="${esc(id)}">手入力で登録</button>
         </div>
       </details>
-      <span class="rb-msg" id="qa-rmsg"></span>`;
+      <span class="rb-msg" id="${p}-rmsg"></span>`;
     box.hidden = false;
     return;
   }
@@ -2508,20 +2673,20 @@ function renderRangeBox(title, artist){
     : `歌唱${song.takes}回ぶんの実測（原曲キー換算）`;
 
   // いま設定しているキーで、実際にどこまで届くか
-  const curLow = song.low + qaKey, curHigh = song.high + qaKey;
+  const curLow = song.low + key, curHigh = song.high + key;
   const overHigh = Math.max(0, curHigh - me.comfortHigh);
   const overLow  = Math.max(0, me.comfortLow - curLow);
   const fitsNow  = !overHigh && !overLow;
 
   let verdict;
   if(fitsNow){
-    verdict = `${fmtKey(qaKey)} なら声域に収まります`;
+    verdict = `${fmtKey(key)} なら声域に収まります`;
   } else {
     const parts = [];
     if(overHigh) parts.push(`高音が ${overHigh} 半音たりません`);
     if(overLow)  parts.push(`低音が ${overLow} 半音たりません`);
-    verdict = `${fmtKey(qaKey)} では${parts.join('／')}`;
-    if(ra && ra.fits && ra.key !== qaKey) verdict += `　→ ${fmtKey(ra.key)} なら収まります`;
+    verdict = `${fmtKey(key)} では${parts.join('／')}`;
+    if(ra && ra.fits && ra.key !== key) verdict += `　→ ${fmtKey(ra.key)} なら収まります`;
     else if(ra && !ra.fits) verdict += `（曲の音域が ${ra.over} 半音広く、どのキーでも収まりません）`;
   }
 
@@ -2535,12 +2700,12 @@ function renderRangeBox(title, artist){
     ${keyboardSpans([
       { label:'曲（原曲キー）', low:song.low, high:song.high, cls:'song' },
       { label:'あなたの声域',   low:me.comfortLow, high:me.comfortHigh, cls:'me' },
-      { label:`キー ${fmtKey(qaKey)}`, low:curLow, high:curHigh, cls: fitsNow ? 'fit' : 'over' },
+      { label:`キー ${fmtKey(key)}`, low:curLow, high:curHigh, cls: fitsNow ? 'fit' : 'over' },
     ], { from, to })}
     <div class="rb-verdict ${fitsNow ? 'ok' : 'ng'}">${esc(verdict)}</div>
-    ${ra && ra.fits && ra.key !== qaKey
+    ${ra && ra.fits && ra.key !== key
       ? `<div class="panel-actions" style="margin:8px 0 0">
-           <button type="button" class="btn" id="qa-rapply" data-k="${ra.key}">${fmtKey(ra.key)} にする</button>
+           <button type="button" class="btn" id="${p}-rapply" data-k="${ra.key}">${fmtKey(ra.key)} にする</button>
          </div>` : ''}
     ${song.falsetto != null ? `<div class="rb-foot">裏声最高音 ${noteName(song.falsetto)}（キー計算には含めていません）</div>` : ''}`;
   box.hidden = false;
@@ -2550,10 +2715,10 @@ function renderRangeBox(title, artist){
  * 曲の音域を取り寄せる（結果は端末に保存して再問い合わせしない）
  * pageUrl を渡すと検索せずそのページから読む
  */
-async function lookupSongRange(id, btn, pageUrl){
-  const title  = document.getElementById('qa-title').value.trim();
-  const artist = document.getElementById('qa-artist').value.trim();
-  const msg = document.getElementById('qa-rmsg');
+async function lookupSongRange(p, id, btn, pageUrl){
+  const title  = document.getElementById(p + '-title').value.trim();
+  const artist = document.getElementById(p + '-artist').value.trim();
+  const msg = document.getElementById(p + '-rmsg');
   if(!proxyUrl){ msg.textContent = '取得サーバー(proxy)が未設定です。'; return; }
   const sep = proxyUrl.includes('?') ? '&' : '?';
   const url = pageUrl
@@ -2574,7 +2739,7 @@ async function lookupSongRange(id, btn, pageUrl){
 
     songRanges[id] = { high, low, falsetto:parseNote(d.falsetto), source:d.source, url:d.url };
     save();
-    updateKeyHint();
+    refreshRangeBox(p);
     toast(`音域を取得しました（${d.low}〜${d.high}）`);
   }catch(err){
     msg.textContent = isNetworkError(err) ? '取得サーバーに接続できませんでした。' : '取得に失敗しました: ' + err.message;
@@ -2583,40 +2748,50 @@ async function lookupSongRange(id, btn, pageUrl){
   }
 }
 
-/* 曲の音域（検索 / URL指定 / 手入力） */
-document.getElementById('qa-range').addEventListener('click', e => {
-  const apply = e.target.closest('#qa-rapply');
-  if(apply){ setQaKey(Number(apply.dataset.k)); keyTouched = true; updateKeyHint(); return; }
+/* 曲の音域（検索 / URL指定 / 手入力）。qa と d で同じ作りなので接頭辞で共有する */
+function attachRangeBox(p){
+  document.getElementById(p + '-range').addEventListener('click', e => {
+    const apply = e.target.closest(`#${p}-rapply`);
+    if(apply){ RANGE_UI[p].apply(Number(apply.dataset.k)); return; }
 
-  const look = e.target.closest('#qa-rlookup');
-  if(look){ lookupSongRange(look.dataset.id, look); return; }
+    const look = e.target.closest(`#${p}-rlookup`);
+    if(look){ lookupSongRange(p, look.dataset.id, look); return; }
 
-  const fromUrl = e.target.closest('#qa-rfromurl');
-  if(fromUrl){
-    const v = document.getElementById('qa-rurl').value.trim();
-    if(!v){ document.getElementById('qa-rmsg').textContent = 'URLを入力してください。'; return; }
-    lookupSongRange(fromUrl.dataset.id, fromUrl, v);
-    return;
-  }
+    const fromUrl = e.target.closest(`#${p}-rfromurl`);
+    if(fromUrl){
+      const v = document.getElementById(p + '-rurl').value.trim();
+      if(!v){ document.getElementById(p + '-rmsg').textContent = 'URLを入力してください。'; return; }
+      lookupSongRange(p, fromUrl.dataset.id, fromUrl, v);
+      return;
+    }
 
-  const btn = e.target.closest('#qa-rsave'); if(!btn) return;
-  const msg = document.getElementById('qa-rmsg');
-  const low  = parseNote(document.getElementById('qa-rlow').value);
-  const high = parseNote(document.getElementById('qa-rhigh').value);
-  if(low == null || high == null){
-    msg.textContent = '音名を読み取れません（例：mid1D# / hiA / lowG）'; return;
-  }
-  if(low >= high){ msg.textContent = '最低音と最高音が逆のようです'; return; }
-  songRanges[btn.dataset.id] = { high, low };
-  save();
-  updateKeyHint();
-  toast('曲の音域を登録しました');
-});
+    const btn = e.target.closest(`#${p}-rsave`); if(!btn) return;
+    const msg = document.getElementById(p + '-rmsg');
+    const low  = parseNote(document.getElementById(p + '-rlow').value);
+    const high = parseNote(document.getElementById(p + '-rhigh').value);
+    if(low == null || high == null){
+      msg.textContent = '音名を読み取れません（例：mid1D# / hiA / lowG）'; return;
+    }
+    if(low >= high){ msg.textContent = '最低音と最高音が逆のようです'; return; }
+    songRanges[btn.dataset.id] = { high, low };
+    save();
+    refreshRangeBox(p);
+    toast('曲の音域を登録しました');
+  });
+}
+attachRangeBox('qa');
+attachRangeBox('d');
 
 ['qa-title','qa-artist'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input',  updateKeyHint);
   el.addEventListener('change', updateKeyHint);   // 候補から選んだとき
+});
+['d-title','d-artist'].forEach(id => {
+  const el = document.getElementById(id);
+  const upd = () => renderRangeBox('d');
+  el.addEventListener('input',  upd);
+  el.addEventListener('change', upd);
 });
 
 /* サジェストを先に登録 → Enter は候補選択が優先される */
@@ -2644,6 +2819,7 @@ function setDKey(v){
   dKey = Math.max(KEY_MIN, Math.min(KEY_MAX, v));
   document.getElementById('d-keyval').textContent = fmtKey(dKey);
   renderKeyScale('d-keyscale', dKey);
+  renderRangeBox('d');          // キーに合わせて音域の比較も動かす
 }
 attachKeyScale('d-keyscale', k => setDKey(k));
 attachKeyScale('qa-keyscale', k => { setQaKey(k); keyTouched = true; updateKeyHint(); });
@@ -2720,10 +2896,7 @@ document.getElementById('file-import').onchange = e => {
   rd.readAsText(f); e.target.value = '';
 };
 
-/* スクロール／画面幅／ショートカット */
-document.getElementById('main').addEventListener('scroll', e => {
-  document.getElementById('topbar').classList.toggle('stuck', e.target.scrollTop > 8);
-});
+/* 画面幅／ショートカット */
 MQ.addEventListener('change', e => { isMobile = e.matches; closeSheet(); render(); });
 document.addEventListener('keydown', e => {
   if(e.target.matches('input,textarea')) return;
@@ -2732,6 +2905,7 @@ document.addEventListener('keydown', e => {
 });
 
 attachSwipe(document.getElementById('content'));
+applyTheme();
 setQaKey(0);            // キー目盛りの初期描画も兼ねる
 renderKeyScale('d-keyscale', 0);
 
