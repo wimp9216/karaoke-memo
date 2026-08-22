@@ -91,6 +91,8 @@ input,textarea{font-size:16px}          /* iOS のフォーカス時ズーム防
 .content{padding:16px 26px 40px}
 .sortbar{display:none;gap:8px;padding:0 16px 4px;overflow-x:auto;scrollbar-width:none}
 .sortbar::-webkit-scrollbar{display:none}
+/* 一覧のすぐ上に差し込んだとき（content 側の余白が付くので左右は詰める） */
+.content > .sortbar{padding:0 0 10px}
 
 /* ================= table (desktop) ================= */
 table{width:100%;border-collapse:collapse}
@@ -1442,6 +1444,9 @@ const SORTDEFS = {
 };
 function renderSortbar(){
   const bar = document.getElementById('sortbar');
+  // 一覧の中へ移していることがあるので、content を作り直す前に定位置（hero の下）へ戻す。
+  // 戻さないと innerHTML の差し替えでチップごと消えてしまう
+  document.getElementById('content').before(bar);
   const defs = SORTDEFS[view];
   if(!isMobile || !defs){ bar.innerHTML = ''; bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
@@ -1726,10 +1731,13 @@ function renderHistory(){
       <button class="btn ghost" id="hist-clear">取り込んだ履歴を全消去</button>
     </div>` : '') + modeBar;
 
+  // ソートチップの差し込み口。取得ボタン・声域パネルの下、一覧のすぐ上に置く
+  const sortSlot = '<div id="sortslot"></div>';
+
   if(!rows.length){
     c.innerHTML = panel + `<div class="empty"><div class="big">⟲</div><h3>履歴がまだありません</h3><p>アカウントを登録して「⟳ 精密採点履歴を取得」を押してください。</p></div>`;
   } else if(isMobile){
-    c.innerHTML = panel + `<div class="mlist">${rows.map(r => `
+    c.innerHTML = panel + sortSlot + `<div class="mlist">${rows.map(r => `
       <div class="mrow" data-hkey="${esc(r.key)}">
         <div class="thumb" style="${thumbStyle(r.artist || r.title)}">${esc(initial(r.artist || r.title))}</div>
         <div class="mbody">
@@ -1740,7 +1748,7 @@ function renderHistory(){
         <div class="mtail">${r.inMemo ? '<span class="done">✓</span>' : '<button class="addb" data-act="tomemo">＋</button>'}</div>
       </div>`).join('')}</div>`;
   } else {
-    c.innerHTML = panel + `
+    c.innerHTML = panel + sortSlot + `
       <table>
         <thead><tr>
           <th class="c-num">#</th>
@@ -1768,6 +1776,11 @@ function renderHistory(){
           </tr>`).join('')}</tbody>
       </table>`;
   }
+
+  // ソートチップを一覧の直上へ。要素ごと移すので click ハンドラはそのまま生きる
+  const slot = document.getElementById('sortslot');
+  const bar  = document.getElementById('sortbar');
+  if(slot && bar) slot.replaceWith(bar);
 
   const fetchBtn = document.getElementById('dam-fetch');
   if(fetchBtn) fetchBtn.onclick = () => fetchDamHistory(fetchBtn);
